@@ -1,4 +1,11 @@
-numpy
 pandas
+numpy
+scikit-learn
+scipy
+matplotlib
 seaborn
+requests
+beautifulsoup4
+nba_api
+joblib
 -e .
