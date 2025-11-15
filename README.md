@@ -31,22 +31,23 @@ You can run it using Docker (recommended) or by installing it locally with pip.
 
 `````
 src/
-│── backend/
-│   ├── main.py
-│   └── routes/
-│       ├── predict.py
-│       └── update.py
-│
-│── features/
-│   ├── data_collector.py
-│   ├── data_cleaner.py
-│   ├── model_trainer.py
-│   ├── model_predictor.py
-│   └── daily_predictor.py
-│
-│── utils/
-│   ├── logger.py
-│   └── exception.py
+│── nba_predict/
+│   ├── backend/
+│   │   ├── main.py
+│   │   └── routes/
+│   │       ├── predict.py
+│   │       └── update.py
+│   │
+│   ├── features/
+│   │   ├── data_collector.py
+│   │   ├── data_cleaner.py
+│   │   ├── model_trainer.py
+│   │   ├── model_predictor.py
+│   │   └── daily_predictor.py
+│   │
+│   └── utils/
+│       ├── logger.py
+│       └── exception.py
 │
 Dockerfile
 docker-compose.yml
@@ -184,3 +185,4 @@ Done — your API is live.
 
 
 # ⭐ If you like this project, consider giving it a GitHub star!
+
