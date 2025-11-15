@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "predict-nba"
+version = "0.1.0"
+description = "NBA prediction project using ML + Supabase + FastAPI"
+authors = [
+    { name="Markus", email="muilu.markus@gmail.com" }
+]
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "pandas",
+    "numpy",
+    "scikit-learn",
+    "scipy",
+    "requests",
+    "python-dotenv",
+    "supabase",
+    "pytz",
+    "skops",
+    "joblib"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
