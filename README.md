@@ -31,7 +31,7 @@ You can run it using Docker (recommended) or by installing it locally with pip.
 
 `````
 src/
-│── nba_predict/
+│── predict_nba/
 │   ├── backend/
 │   │   ├── main.py
 │   │   └── routes/
@@ -185,4 +185,5 @@ Done — your API is live.
 
 
 # ⭐ If you like this project, consider giving it a GitHub star!
+
 
