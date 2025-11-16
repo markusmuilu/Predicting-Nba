@@ -1,0 +1,49 @@
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Local environment variables
+.env
+.env.*
+
+# Git and GitHub
+.git/
+.gitignore
+.github/
+
+# Local data
+data/
+
+# Keys and secrets
+predict-nba-key.pem
+github_deploy_key
+github_deploy_key.pub
+
+# OS stuff
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+build/
+dist/
+.eggs/
+*.egg-info/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE / tooling
+.vscode/
+.idea/
+.pdm-python
+.pdm-build/
+.ruff_cache/
+.pytype/
+.mypy_cache/
+.pyre/
