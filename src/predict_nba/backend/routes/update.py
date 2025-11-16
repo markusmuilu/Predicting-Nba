@@ -7,7 +7,7 @@ Handles:
 
 from fastapi import APIRouter, HTTPException
 
-from predict_nba.features.daily_predictor import DailyPredictor
+from predict_nba.automation import DailyPredictor
 from predict_nba.utils.logger import logger
 
 router = APIRouter(prefix="/update", tags=["Updates"])
@@ -24,8 +24,7 @@ def update_daily_stats():
         logger.info("Starting daily update job...")
         dp = DailyPredictor()
 
-        dp.update_predictions()
-        dp.new_predictions()
+        dp.run_all()
 
         logger.info("Daily update job completed successfully.")
         return {"message": "Daily update complete."}

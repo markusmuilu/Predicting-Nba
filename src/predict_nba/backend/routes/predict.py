@@ -4,7 +4,7 @@ Prediction API routes for generating matchup predictions.
 
 from fastapi import APIRouter, Query, HTTPException
 
-from predict_nba.features.make_prediction import MakePrediction
+from predict_nba.pipeline.make_prediction import MakePrediction
 from predict_nba.utils.logger import logger
 
 router = APIRouter(prefix="/predict", tags=["Predictions"])

@@ -5,10 +5,11 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "predict-nba"
 version = "0.1.0"
-description = "NBA prediction project using ML + Supabase + FastAPI"
+description = "NBA prediction project using ML + S3 + FastAPI"
 authors = [
     { name="Markus", email="muilu.markus@gmail.com" }
 ]
+
 dependencies = [
     "fastapi",
     "uvicorn",
@@ -18,9 +19,9 @@ dependencies = [
     "scipy",
     "requests",
     "python-dotenv",
-    "supabase",
     "pytz",
     "skops",
+    "boto3",          
     "joblib"
 ]
 
