@@ -1,9 +1,9 @@
-### Python ###
+# Python bytecode
 __pycache__/
 *.py[cod]
 *$py.class
 
-### Build / Packaging ###
+# Build / packaging
 build/
 dist/
 .eggs/
@@ -11,14 +11,14 @@ dist/
 *.egg
 MANIFEST
 
-### Virtual Environments ###
+# Virtual environments
 .env
 .venv/
 venv/
 env/
 ENV/
 
-### Logs / cache / testing ###
+# Logs, cache, testing
 *.log
 .cache/
 pytest_cache/
@@ -28,10 +28,10 @@ htmlcov/
 .tox/
 .nox/
 
-### Jupyter ###
+# Jupyter
 .ipynb_checkpoints/
 
-### Tools ###
+# Tool caches
 .pdm-python
 .pdm-build/
 .ruff_cache/
@@ -39,26 +39,27 @@ htmlcov/
 .mypy_cache/
 .pyre/
 
-### VS Code ###
+# VS Code / PyCharm
 .vscode/
-
-### PyCharm ###
 .idea/
 
-### OS / Misc ###
+# OS files
 .DS_Store
 Thumbs.db
 
-### Project-specific ###
-# API keys and secrets
+# Environment files
+.env
 .env.example
-.env          # actual secrets file
 
-# Your AWS key
+# AWS EC2 keys
 predict-nba-key.pem
+
+# GitHub deploy keys
+github_deploy_key
+github_deploy_key.pub
 
 # Local test scripts
 test.py
 
-# Data files / large outputs (if ever created)
+# Local data
 data/
