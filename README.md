@@ -1,188 +1,478 @@
-## 🏀 Predict NBA — Machine Learning NBA Game Predictor
+# 📊 NBA Game Prediction System
 
-FastAPI • Supabase • Scikit-Learn • Docker • ESPN Automation
+Machine-learning powered NBA win probability prediction pipeline with FastAPI, Docker, and AWS S3 storage.
 
-This project predicts NBA game outcomes using machine learning.
-It automatically:
+This project fully automates:
 
-- Collects team game logs  
-- Cleans + feature-engineers datasets  
-- Trains a prediction model  
-- Generates daily predictions  
-- Updates results using ESPN  
-- Stores prediction history in Supabase  
-- Exposes a clean FastAPI API  
+- 🏀 Fetching NBA game logs from PBPStats API
 
+- 🧹 Cleaning + transforming multi-season data
 
-You can run it using Docker (recommended) or by installing it locally with pip.
+- 🤖 Training a ML model using scikit-learn (stored in S3)
 
-## 📦 Features
+- 🔄 Running daily prediction automation (scheduled inside Docker)
 
-- 🧠 ML-based game winner predictions  
-- ⚙️ Automated data collection & cleaning  
-- 🗄 Supabase integration (tables + bucket)  
-- 📅 Daily predictions using ESPN’s scoreboard  
-- 🌐 FastAPI backend with Swagger docs  
-- 🐳 Dockerized deployment (best option)  
-- 🐍 Optional local installation with pyproject.toml  
-- ⭐ Production-ready structure for real-world use  
+- 🌐 Serving predictions over a FastAPI REST API
 
-# 📁 Project Structure
+- ☁️ Managing training data, models, and predictions in S3 only
 
-`````
-src/
-│── predict_nba/
-│   ├── backend/
-│   │   ├── main.py
-│   │   └── routes/
-│   │       ├── predict.py
-│   │       └── update.py
-│   │
-│   ├── features/
-│   │   ├── data_collector.py
-│   │   ├── data_cleaner.py
-│   │   ├── model_trainer.py
-│   │   ├── model_predictor.py
-│   │   └── daily_predictor.py
-│   │
-│   └── utils/
-│       ├── logger.py
-│       └── exception.py
+- No Supabase, no external DB — fully S3-based and stateless.
+
+# 🚀 Features
+Data Pipeline
+
+- Multi-season training data collection (2021–22 → 2024–25)
+
+- Automatic team metadata loading from teams/teams.json in S3
+
+- Per-team game logs fetched via PBPStats
+
+- Cleaned + feature engineered dataset uploaded back to S3
+
+- Model training with scikit-learn MLP and model stored in S3
+
+Automated Daily System
+
+- Detects finished games from ESPN scoreboard
+
+- Moves completed predictions → history in S3
+
+- Fetches today’s matchups
+
+- Generates fresh predictions and uploads:
+
+- current/current_predictions.json
+
+- history/prediction_history.json
+
+FastAPI Backend
+
+- /predict – Predict outcome for a given matchup
+
+- /update – Manually trigger daily update (same logic as automation)
+
+- Loads the trained model directly from S3 via model_predictor.py
+
+Container-Oriented Architecture
+
+- bootstrap container:
+
+- - Ensures teams/teams.json exists in S3 (from PBPStats /get-teams/nba)
+
+- - Trains model if models/prediction_model.skops is missing
+
+- api container:
+
+- - FastAPI app, waits until model exists in S3
+
+- automation container:
+
+- - Periodic job runner, waits until model exists in S3
+
+- Docker healthchecks ensure correct startup ordering
+
+# 🧱 Project Structure
+```
+src/predict_nba/
+│   __init__.py
 │
-Dockerfile
-docker-compose.yml
-pyproject.toml
-requirements.txt
-.env.example
-setup_project.py
-`````
-# 🔧 Installation Options
+├── automation/                    # Automation & scheduling layer
+│   │   automation_runner.py       # Main scheduler: runs daily jobs at 12:00 Helsinki
+│   │   daily_generate.py          # Generates today's predictions from ESPN schedule
+│   │   daily_update.py            # Resolves finished games & updates history
+│   │   espn_utils.py              # ESPN helpers (dates, IDs, mapping, etc.)
+│   │   history_manager.py         # Read/write current/history JSON in S3
+│   │   predictor_runner.py        # Legacy/compatibility runner wrapper
+│   │   __init__.py
+│
+├── backend/                       # FastAPI backend
+│   │   main.py                    # FastAPI app instance & router registration
+│   │   __init__.py
+│   │
+│   └── routes/
+│       │   predict.py             # POST /predict (single matchup prediction)
+│       │   update.py              # POST /update (manual daily run)
+│       │   __init__.py
+│
+├── pipeline/                      # Core ML & data pipeline
+│   │   bootstrap_model.py         # Ensures teams.json + trains & uploads model if missing
+│   │   daily_predictor.py         # Orchestrates daily_update + daily_generate
+│   │   data_cleaner.py            # Cleans training data and engineer features
+│   │   data_collector.py          # Collects raw logs from PBPStats into training CSV
+│   │   make_prediction.py         # High-level "predict this matchup" function
+│   │   model_predictor.py         # Loads model from S3, runs predict_proba
+│   │   model_trainer.py           # Trains scikit-learn MLP and uploads .skops bundle
+│   │   __init__.py
+│
+├── utils/                         # Shared utilities
+│   │   exception.py               # CustomException with improved trace formatting
+│   │   logger.py                  # Project-wide structured logger
+│   │   s3_client.py               # Generic JSON & bytes S3 helper (upload/download)
+│   │   wait_for_model.py          # Blocks until model exists in S3 (used by automation/api)
+│   │   __init__.py
+│
+└── __pycache__/                   # Python bytecode (ignored in Git)
+```
 
-You can run the project in two ways:
+Root-level files:
+```
+.github/workflows/deploy     # CI/CD or deployment workflow (if configured)
+.env                         # Local env vars (not committed)
+.dockerignore                # Files ignored by Docker build context
+.gitignore                   # Git ignore rules
+docker-compose.yml           # Multi-container dev/prod stack
+Dockerfile                   # Base image for all three services
+pyproject.toml               # Package metadata + dependencies (installable via pip)
+requirements.txt             # Resolved dependency versions (optional helper)
+setup_project.py             # Legacy initial setup script (superseded by bootstrap_model.py)
+README.md                    # This file
+```
+# ⚙️ Environment & S3 Layout
+Required env variables (.env)
+```
+AWS_ACCESS_KEY_ID=your_key
+AWS_SECRET_ACCESS_KEY=your_secret
+AWS_S3_BUCKET_NAME=nbatraindata
+AWS_REGION=eu-north-1
+TZ=Europe/Helsinki
+```
+S3 keys used by the system
 
-# 🐳 Option 1 — Run With Docker (Recommended)
-**1️⃣ Create your .env**
+- Config
 
-Copy the example:
-`````
-cp .env.example .env
-`````
+- - teams/teams.json – auto-created by bootstrap_model.py from PBPStats /get-teams/nba
 
-Fill in:
-`````
-SUPABASE_URL=your_supabase_url
-SUPABASE_KEY=your_service_or_anon_key
-`````
-# 2️⃣ Start the API
-`````
-docker compose up --build -d
-`````
+- Training data
 
-API is now running at:
+- - training/training_data.csv – raw multi-season logs
 
-➡️ http://localhost:8000
+- - clean/training_data_clean.csv – cleaned, feature-engineered dataset
 
-➡️ http://localhost:8000/docs
- (Swagger UI)
+- Model
 
-# 3️⃣ First-time setup (create tables + train model)
-`````
-docker run --env-file .env predict-nba_api python setup_project.py
-`````
+- - models/prediction_model.skops – trained scikit-learn MLP bundle
 
-# 🐍 Option 2 — Local Python Installation
-1️⃣ Create virtual environment
-`````
-python -m venv venv
-source venv/bin/activate     # Mac/Linux
-venv\Scripts\activate        # Windows
-`````
+- Predictions
 
-# 2️⃣ Install project
-`````
-pip install .
-`````
+- - current/current_predictions.json – active (unresolved) predictions
 
-or:
-`````
-pip install -r requirements.txt
-`````
-# 3️⃣ Initialize Supabase + train model
-`````
-python setup_project.py
-`````
-# 4️⃣ Start API
-`````
-uvicorn src.backend.main:app --reload
-`````
-# 📡 API Endpoints
-Predict matchup
-`````
-GET /predict?team1=CLE&team2=ATL
-`````
+- - history/prediction_history.json – full prediction/result history
 
-Example response:
-`````
+# 🛠 How Bootstrapping Works
+
+pipeline/bootstrap_model.py:
+
+1. Check for model:
+
+- If models/prediction_model.skops exists in S3 → log and exit cleanly.
+
+2. Ensure team metadata:
+
+- Check for teams/teams.json in S3.
+
+- If missing:
+
+- - Fetch from https://api.pbpstats.com/get-teams/nba
+
+- - Normalize to:
+```
 {
-  "winner": "CLE",
-  "confidence": 73.5
+  "teams": [
+    { "id": 1610612737, "name": "ATL" },
+    ...
+  ]
 }
-`````
-# Daily update (ESPN results + new predictions)
-`````
-POST /update
-`````
+```
 
-Runs:
+- - Upload via S3Client.upload_json(...).
 
-- Update finished game
-- Insert new predictions for today
+3. Collect multi-season training data:
 
-# 🗄 Supabase schema
-Tables
-teams
-id (int) | name (text)
+- Uses DataCollector.collect_training_data(seasons)
 
-current_predictions
+- Default seasons:
+```
+seasons = ["2021-22", "2022-23", "2023-24", "2024-25"]
+```
 
-Stores today's predictions.
+- Loops all teams in teams.json for each season.
 
-prediction_history
-    
-Stores historical predictions + correctness.
+- Each team-season fetches:
 
-**Bucket**: modelData
+- - https://api.pbpstats.com/get-game-logs/nba
 
-Contains:
+- Combines all logs into a single training/training_data.csv in S3.
 
-raw logs
+4. Clean the training data:
 
-cleaned CSVs
+- DataCleaner.clean_training_data():
 
-model file (prediction_model.skops)
+- - Downloads training/training_data.csv
 
-# 🌩 Deploy to AWS EC2 (with Docker)
+- - Fetches home/away mapping via PBPStats /get-games/nba
 
-Install Docker:
-`````
-sudo apt update
-sudo apt install docker.io docker-compose -y
-`````
+- - Merges, imputes, engineers advanced features
 
-Clone repo:
-`````
-git clone https://github.com/your/repo.git
-cd repo
-`````
+- - Uploads clean/training_data_clean.csv to S3
 
-Run:
-`````
-docker compose up --build -d
-`````
+5. Train the ML model:
 
-Done — your API is live.
+- ModelTrainer.train_model():
+
+- - Loads clean/training_data_clean.csv from S3
+
+- - Builds a feature matrix with ~44 features
+
+- - Trains an MLPClassifier (scikit-learn)
+
+- - Logs performance (accuracy, ROC-AUC, classification report)
+
+- - Serializes with skops and uploads models/prediction_model.skops to S3
+
+6. Mark completion:
+
+- Creates /tmp/bootstrap_done in the container for Docker healthcheck:
+```
+open("/tmp/bootstrap_done", "w").close()
+```
+# 🐳 Docker Architecture
+docker-compose.yml (conceptual)
+
+- bootstrap (one-shot)
+
+- - Runs python3 -m predict_nba.pipeline.bootstrap_model
+
+- - Has a healthcheck:
+```
+healthcheck:
+  test: ["CMD-SHELL", "test -f /tmp/bootstrap_done"]
+  interval: 5s
+  timeout: 3s
+  retries: 50
+```
+
+- api
+
+- - Depends on bootstrap health:
+```
+depends_on:
+  bootstrap:
+    condition: service_healthy
+```
+
+- - Runs:
+```
+uvicorn predict_nba.backend.main:app --host 0.0.0.0 --port 8000
+```
+
+- automation
+
+- - Also depends on bootstrap health
+
+- - Runs:
+```
+python3 -m predict_nba.automation.automation_runner
+```
+
+This ensures:
+
+1. Model gets trained at first run (if missing).
+
+2. Only after that:
+
+- - API starts and can successfully load model from S3.
+
+- - Automation starts and can call model_predictor.py safely.
+
+# 🔄 Daily Automation Flow
+
+Main entry: automation/automation_runner.py
+
+- On startup:
+
+- - Logs “Running FIRST automation job immediately…”
+
+- - Calls DailyPredictor (in pipeline/daily_predictor.py) to:
+
+- - 1. Resolve finished games using ESPN:
+
+- - - - Loads current/current_predictions.json from S3
+
+- - - - Checks real results from ESPN scoreboard
+
+- - - - Moves them to history/prediction_history.json
+
+- - 2. Generate today’s predictions:
+
+- - - - Calls PBPStats to pull latest logs for teams playing today
+
+- - - - Cleans them using data_cleaner
+
+- - - - Uses model_predictor + make_prediction to produce probabilities
+
+- - - - Writes to current/current_predictions.json in S3
+
+- After first run:
+
+- - Computes next 12:00 Helsinki time using TZ-aware logic
+
+- - Sleeps until then
+
+- - Repeats the same cycle every day
+
+# 🌐 FastAPI Endpoints
+backend/main.py
+
+Sets up the FastAPI app, adds routers from backend.routes.predict and backend.routes.update.
+
+POST /predict
+
+Predict the outcome of a specific matchup:
+
+Request body example:
+```
+{
+  "home": "BOS",
+  "away": "LAL"
+}
+```
+
+Response example:
+```
+{
+  "home": "BOS",
+  "away": "LAL",
+  "prob_home_win": 0.72
+}
+```
+
+Internally uses:
+
+- make_prediction.py → which calls
+
+- model_predictor.py (to load model from S3)
+
+- And uses feature engineering consistent with training.
+
+# POST /update
+
+Manual trigger for the same logic automation runs:
+
+- Resolve finished games
+
+- Generate predictions for today
+
+Useful for debugging or on-demand refreshes.
+
+# 🧠 Model Details
+
+- Algorithm: MLPClassifier from scikit-learn
+
+- Hidden layers: (256, 128, 64)
+
+- Metrics logged:
+
+- - Accuracy
+
+- - ROC-AUC
+
+- - Full classification report
+
+- Training data:
+
+- - Multi-season dataset 2021–22 → 2024–25
+
+- - Cleaned and engineered features stored in clean/training_data_clean.csv
+
+- Storage:
+
+- - Binary model bundle in S3: models/prediction_model.skops
+
+#🧾 File-by-File Overview
+### `automation/`
+
+| File                  | Role |
+|-----------------------|------|
+| `automation_runner.py`| Scheduler + main loop for daily automation |
+| `daily_generate.py`   | Generates predictions for today’s games |
+| `daily_update.py`     | Resolves finished games and updates history JSON |
+| `espn_utils.py`       | Helper functions for ESPN APIs, IDs, and dates |
+| `history_manager.py`  | Loads/saves current + history JSON from S3 |
+| `predictor_runner.py` | Legacy runner |
+| `__init__.py`         | Package initialization |
+
+### `backend/`
+
+| File                 | Role                               |
+|----------------------|------------------------------------|
+| `main.py`            | FastAPI app, mounts all routes     |
+| `routes/predict.py`  | Implements `/predict` endpoint     |
+| `routes/update.py`   | Implements `/update` endpoint      |
+| `routes/__init__.py` | Router package setup               |
 
 
+### `pipeline/`
+
+| File                 | Role                                                                      |
+|----------------------|---------------------------------------------------------------------------|
+| `bootstrap_model.py` | Creates `teams.json` (if missing) and trains model (if missing)          |
+| `data_collector.py`  | Downloads multi-season training game logs from PBPStats                  |
+| `data_cleaner.py`    | Cleans data, merges home/away mapping, and engineers features            |
+| `model_trainer.py`   | Trains MLP model and uploads `models/prediction_model.skops` to S3       |
+| `model_predictor.py` | Downloads model from S3 and runs predictions                             |
+| `make_prediction.py` | Single-game prediction helper                                            |
+| `daily_predictor.py` | Orchestrates daily update + prediction generation workflow               |
+| `__init__.py`        | Package initialization                                                   |
+
+
+### `utils/`
+
+| File               | Role                                                     |
+|--------------------|----------------------------------------------------------|
+| `s3_client.py`     | Generic JSON + bytes upload/download helper for S3       |
+| `logger.py`        | Centralized logger used across modules                   |
+| `exception.py`     | `CustomException` with formatted stack traces            |
+| `wait_for_model.py`| Blocks process until model file exists in S3             |
+| `__init__.py`      | Package initialization                                   |
+# 🏁 Summary
+
+This project gives you:
+
+A complete end-to-end NBA prediction system
+
+A clean, modular Python package (predict_nba) installable via pip
+
+Stateless architecture: everything persisted in S3
+
+A reusable infrastructure pattern:
+
+bootstrap job → automation jobs → API sitting on top
+
+Perfect for:
+
+Portfolio projects demonstrating:
+
+ML
+
+Cloud (S3)
+
+Containers (Docker)
+
+Backend (FastAPI)
+
+Automation / scheduling
+
+Real-world use where you just hook a front-end or BI tool (like Power BI) to S3 outputs.
+
+If you’d like, next we can:
+
+Add a short “TL;DR” section for recruiters
+
+Generate example curl requests for all endpoints
+
+Sketch a system architecture diagram (as text or Draw.io-ready description)
+
+Write a “Future Improvements” section for your README.
 
 # ⭐ If you like this project, consider giving it a GitHub star!
 
