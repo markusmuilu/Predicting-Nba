@@ -1,0 +1,134 @@
+"""
+Model prediction module for the NBA prediction project.
+
+Responsibilities:
+- Load the trained model + scaler from S3 (.skops bundle)
+- Load the cleaned matchup CSV from S3
+- Prepare features for inference
+- Predict the winner and confidence percentage
+"""
+
+import io
+import os
+import sys
+
+import boto3
+import pandas as pd
+import skops.io as sio
+from dotenv import load_dotenv
+
+from predict_nba.utils.exception import CustomException
+from predict_nba.utils.logger import logger
+
+
+class S3Client:
+    """Utility class for downloading binary files from S3."""
+
+    def __init__(self):
+        load_dotenv()
+        self.bucket = os.getenv("AWS_S3_BUCKET_NAME")
+        region = os.getenv("AWS_REGION")
+
+        try:
+            self.s3 = boto3.client(
+                "s3",
+                region_name=region,
+                aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+                aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+            )
+        except Exception as e:
+            raise CustomException(f"S3 initialization failed: {e}", sys)
+
+    def download_bytes(self, key: str):
+        """Download raw bytes from S3."""
+        try:
+            resp = self.s3.get_object(Bucket=self.bucket, Key=key)
+            return resp["Body"].read()
+        except Exception as e:
+            CustomException(f"S3 download failed for {key}: {e}", sys)
+            return None
+
+
+class ModelPredictor:
+    """Loads the trained model and performs predictions for team matchups."""
+
+    def __init__(self):
+        load_dotenv()
+        try:
+            self.s3 = S3Client()
+        except Exception as e:
+            CustomException(f"Failed to initialize S3 client: {e}", sys)
+            self.s3 = None
+
+    def predict_matchup(self, team1, team2):
+        """
+        Predicts the winner between two teams using the trained model.
+
+        Steps:
+        - Download model bundle (.skops)
+        - Extract model + scaler
+        - Download cleaned matchup data
+        - Select relevant features
+        - Run prediction and compute confidence
+        """
+        if self.s3 is None:
+            CustomException("S3 client not initialized.", sys)
+            return None
+
+        try:
+            model_key = "models/prediction_model.skops"
+            data_key = f"predict/clean/{team1}vs{team2}.csv"
+
+            # Load model bundle
+            logger.info(f"Downloading model: {model_key}")
+            model_bytes = self.s3.download_bytes(model_key)
+            if model_bytes is None:
+                return None
+
+            untrusted = sio.get_untrusted_types(data=model_bytes)
+            bundle = sio.loads(model_bytes, trusted=untrusted)
+
+            model = bundle.get("model")
+            scaler = bundle.get("scaler")
+
+            if model is None or scaler is None:
+                CustomException("Model bundle missing 'model' or 'scaler'.", sys)
+                return None
+
+            # Load matchup data
+            logger.info(f"Downloading cleaned matchup data: {data_key}")
+            data_bytes = self.s3.download_bytes(data_key)
+            if data_bytes is None:
+                return None
+
+            df = pd.read_csv(io.BytesIO(data_bytes))
+
+            # Select inference features
+            feature_cols = [
+                c for c in df.columns
+                if c.endswith("_avg")
+                or c.endswith("_diff")
+                or c in ["IsHome", "HomeAdvantage"]
+            ]
+
+            if not feature_cols:
+                CustomException("Prediction data contains no valid features.", sys)
+                return None
+
+            X = df[feature_cols]
+            X_scaled = scaler.transform(X)
+
+            # Predict outcome
+            pred = model.predict(X_scaled)[0]
+            prob = model.predict_proba(X_scaled)[0][1]
+
+            winner = team1 if pred == 1 else team2
+            confidence = round(prob * 100 if pred == 1 else (1 - prob) * 100, 2)
+
+            logger.info(f"Predicted: {winner} ({confidence}%)")
+
+            return {"winner": winner, "confidence": confidence}
+
+        except Exception as e:
+            CustomException(f"predict_matchup failed: {e}", sys)
+            return None
