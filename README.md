@@ -57,7 +57,6 @@ Container-Oriented Architecture
 - automation container:
   - Periodic job runner, waits until model exists in S3
 
-- Docker healthchecks ensure correct startup ordering
 
 # 🧱 Project Structure
 ```
@@ -162,7 +161,6 @@ pipeline/bootstrap_model.py:
   ]
 }
 ```
-
   - Upload via S3Client.upload_json(...).
 
 3. Collect multi-season training data:
@@ -195,40 +193,22 @@ seasons = ["2021-22", "2022-23", "2023-24", "2024-25"]
   - Logs performance (accuracy, ROC-AUC, classification report)
   - Serializes with skops and uploads models/prediction_model.skops to S3
 
-6. Mark completion:
-
-- Creates /tmp/bootstrap_done in the container for Docker healthcheck:
-```
-open("/tmp/bootstrap_done", "w").close()
-```
 # 🐳 Docker Architecture
 docker-compose.yml (conceptual)
 
 - bootstrap (one-shot)
   - Runs python3 -m predict_nba.pipeline.bootstrap_model
-  - Has a healthcheck:
-```
-healthcheck:
-  test: ["CMD-SHELL", "test -f /tmp/bootstrap_done"]
-  interval: 5s
-  timeout: 3s
-  retries: 50
-```
 
 - api
 
-  - Depends on bootstrap health:
-```
-depends_on:
-  bootstrap:
-    condition: service_healthy
-```
+
   - Runs:
 ```
 uvicorn predict_nba.backend.main:app --host 0.0.0.0 --port 8000
 ```
+  - Waits for S3 model and teams files to appear before starting
 - automation
-  - Also depends on bootstrap health
+  - Also waits for S3 model and teams files to appear before starting
   - Runs:
 ```
 python3 -m predict_nba.automation.automation_runner
@@ -392,6 +372,7 @@ Perfect for:
 
 
 # ⭐ If you like this project, consider giving it a GitHub star!
+
 
 
 
