@@ -23,18 +23,18 @@ jobs:
           ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
             set -e
 
-            echo "📦 Pulling latest code..."
+            echo "Pulling latest code..."
             cd ~/predict_nba
             git pull
  
-            echo "🛑 Stopping existing containers..."
-            docker compose down || true
+            echo "Stopping existing containers..."
+            docker-compose down || true
 
-            echo "🔨 Rebuilding Docker image..."
-            docker compose build --no-cache
+            echo "Rebuilding Docker image..."
+            docker-compose build --no-cache
 
-            echo "🚀 Starting containers..."
-            docker compose up -d
+            echo "Starting containers..."
+            docker-compose up -d
 
-            echo "🎉 Deployment complete!"
+            echo "Deployment complete!"
           EOF
