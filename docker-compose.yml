@@ -11,6 +11,8 @@ services:
       - .env
     depends_on:
       - bootstrap
+    ports:
+      - "8000:8000"
     command: uvicorn predict_nba.backend.main:app --host 0.0.0.0 --port 8000
 
   automation:
@@ -20,5 +22,3 @@ services:
     depends_on:
       - bootstrap
     command: python3 -m predict_nba.automation.automation_runner
-
-
