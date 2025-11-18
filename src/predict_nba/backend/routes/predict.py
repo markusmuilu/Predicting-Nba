@@ -10,7 +10,7 @@ from predict_nba.utils.logger import logger
 router = APIRouter(prefix="/predict", tags=["Predictions"])
 
 
-@router.get("/")
+@router.get()
 def get_prediction(
     team1: str = Query(..., description="Home team abbreviation (e.g., CLE)"),
     team2: str = Query(..., description="Away team abbreviation (e.g., ATL)")
