@@ -5,14 +5,15 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /app
 
-# Fix apt keyring issues first
-RUN apt-get update || ( \
-        apt-get install -y ca-certificates gnupg && apt-get update \
-    ) && \
+# Fully working apt setup for Debian Slim
+RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         build-essential \
         gcc \
         g++ \
+        wget \
+        git \
+        ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 COPY . /app
