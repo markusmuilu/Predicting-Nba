@@ -5,17 +5,14 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /app
 
-# Fix Debian keyring problems + install build tools
-RUN apt-get update --allow-insecure-repositories || true && \
+# Fix apt keyring issues first
+RUN apt-get update || ( \
+        apt-get install -y ca-certificates gnupg && apt-get update \
+    ) && \
     apt-get install -y --no-install-recommends \
-        ca-certificates \
-        gnupg \
-        dirmngr \
-        wget \
         build-essential \
         gcc \
         g++ \
-    && update-ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 COPY . /app
