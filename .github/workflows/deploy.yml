@@ -23,6 +23,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: us-east-1
 
+
       - name: Deploy using SSM RunCommand
         run: |
           INSTANCE_ID="i-0a24b060dc385099c"
@@ -31,6 +32,8 @@ jobs:
             --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
             --comment "GitHub Actions deployment" \
-            --parameters commands="cd /home/ubuntu/predict_nba && git fetch --all && git reset --hard origin/main && docker-compose down || true && docker-compose build --no-cache && docker-compose up -d" \
+            --parameters commands="git config --global --add safe.directory /home/ubuntu/predict_nba && cd /home/ubuntu/predict_nba && git fetch --all && git reset --hard origin/main && sudo docker-compose down || true && sudo docker-compose build --no-cache && sudo docker-compose up -d" \
             --region us-east-1 \
             --output text
+
+       
