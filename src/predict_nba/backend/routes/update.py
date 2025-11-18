@@ -13,7 +13,7 @@ from predict_nba.utils.logger import logger
 router = APIRouter(prefix="/update", tags=["Updates"])
 
 
-@router.post("/")
+@router.post("")
 def update_daily_stats():
     """
     Runs the daily update workflow:
