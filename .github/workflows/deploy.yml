@@ -6,8 +6,8 @@ on:
       - main
 
 permissions:
-  id-token: write     
-  contents: read    
+  id-token: write
+  contents: read
 
 jobs:
   deploy:
@@ -31,6 +31,6 @@ jobs:
             --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
             --comment "GitHub Actions deployment" \
-            --parameters commands="cd ~/predict_nba && git fetch --all && git reset --hard origin/main && docker-compose down || true && docker-compose build --no-cache && docker-compose up -d" \
+            --parameters commands="cd /home/ubuntu/predict_nba && git fetch --all && git reset --hard origin/main && docker-compose down || true && docker-compose build --no-cache && docker-compose up -d" \
             --region us-east-1 \
             --output text
