@@ -31,7 +31,10 @@ def get_prediction(
                 detail="Prediction failed. See logs for details."
             )
 
-        return result
+        return {
+            "winner": str(result["winner"]),
+            "confidence": float(result["confidence"])
+        }
 
     except HTTPException:
         raise
