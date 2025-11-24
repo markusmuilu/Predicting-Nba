@@ -163,7 +163,7 @@ class DataCollector:
                         df["season"] = season
 
                         all_data = pd.concat([all_data, df], ignore_index=True)
-                        time.sleep(2)
+                        time.sleep(5)
 
                     except Exception as e:
                         CustomException(f"Failed to fetch logs for {team_name}: {e}", sys)
