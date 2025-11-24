@@ -40,6 +40,7 @@ class S3Client:
                 aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
             )
         except Exception as e:
+            # Fail fast: raising to ensure caller knows initialization failed
             raise CustomException(f"S3 initialization failed: {e}", sys)
 
     def download_csv(self, key: str):
@@ -48,8 +49,8 @@ class S3Client:
             resp = self.s3.get_object(Bucket=self.bucket, Key=key)
             return resp["Body"].read()
         except Exception as e:
-            CustomException(f"S3 download failed for {key}: {e}", sys)
-            return None
+            # raise instead of silently creating an exception object
+            raise CustomException(f"S3 download failed for {key}: {e}", sys)
 
     def upload_csv_bytes(self, csv_bytes: bytes, key: str):
         """Upload CSV bytes to S3."""
@@ -62,7 +63,8 @@ class S3Client:
             )
             logger.info(f"Uploaded {key} to S3")
         except Exception as e:
-            CustomException(f"S3 upload failed for {key}: {e}", sys)
+            # raise instead of silently creating an exception object
+            raise CustomException(f"S3 upload failed for {key}: {e}", sys)
 
 
 class DataCleaner:
@@ -92,11 +94,8 @@ class DataCleaner:
             "Rebounds", "Steals", "Blocks",
         ]
 
-        try:
-            self.s3 = S3Client()
-        except Exception as e:
-            CustomException(f"DataCleaner initialization failed: {e}", sys)
-            self.s3 = None
+        # initialize s3 client; fail if S3 client cannot be created
+        self.s3 = S3Client()
 
     def _fetch_home_away_map(self, seasons):
         """
@@ -153,8 +152,7 @@ class DataCleaner:
             clean/training_data_clean.csv
         """
         if self.s3 is None:
-            CustomException("S3 client not initialized.", sys)
-            return None
+            raise CustomException("S3 client not initialized.", sys)
 
         raw = self.s3.download_csv(key)
         if raw is None:
@@ -177,12 +175,11 @@ class DataCleaner:
             "team", "GameId", "Date", "Opponent", "Points",
             "GamesPlayed", "DefPoss", "OffPoss",
             "Fg3Pct", "Fg2Pct", "TsPct", "EfgPct",
-            "Rebounds", "Steals", "Blocks",
+            "Rebounds", "Steals", "Blocks", "season",
         ]
         missing = [c for c in required if c not in data.columns]
         if missing:
-            CustomException(f"Missing required columns: {missing}", sys)
-            return None
+            raise CustomException(f"Missing required columns: {missing}", sys)
 
         # Map GameId → home/away info
         seasons = data["season"].unique().tolist()
@@ -200,7 +197,8 @@ class DataCleaner:
 
         # Basic rating metrics
         data["OffRtg"] = (data["Points"] / data["OffPoss"]) * 100
-        data["DefRtg"] = (data["Points"].shift(1) / data["DefPoss"]) * 100
+        # DefRtg must use the opponent points allowed in the previous team game -> shift per team
+        data["DefRtg"] = (data.groupby("team")["Points"].shift(1) / data["DefPoss"]) * 100
         data["NetRtg"] = data["OffRtg"] - data["DefRtg"]
         data["EfgDiff"] = data.groupby("team")["EfgPct"].diff().fillna(0)
         data["TsDiff"] = data.groupby("team")["TsPct"].diff().fillna(0)
@@ -215,10 +213,11 @@ class DataCleaner:
                 )
 
         # Only keep rows where all averages are available
-        data = data.dropna(subset=[f"{c}_avg" for c in all_features if f"{c}_avg" in data.columns])
+        avg_cols = [f"{c}_avg" for c in all_features if f"{c}_avg" in data.columns]
+        data = data.dropna(subset=avg_cols)
 
         # Build opponent feature set
-        opp_cols = [f"{c}_avg" for c in all_features]
+        opp_cols = avg_cols
         opp_df = data[["team", "GameId", "Points"] + opp_cols + ["IsHome"]].copy()
         opp_df.columns = (
             ["OpponentTeam", "GameId", "Opp_Points"]
@@ -237,8 +236,11 @@ class DataCleaner:
         merged["PointDifferential"] = merged["Points"] - merged["Opp_Points"]
         merged["TeamWin"] = (merged["PointDifferential"] > 0).astype(int)
 
-        merged["DefRtg_avg"] = (merged["Opp_Points"] / merged["DefPoss_avg"]) * 100
-        merged["NetRtg_avg"] = merged["OffRtg_avg"] - merged["DefRtg_avg"]
+        # Compute DefRtg_avg and NetRtg_avg based on averages where available
+        if "Opp_Points" in merged and "DefPoss_avg" in merged:
+            merged["DefRtg_avg"] = (merged["Opp_Points"] / merged["DefPoss_avg"]) * 100
+        if "OffRtg_avg" in merged and "DefRtg_avg" in merged:
+            merged["NetRtg_avg"] = merged["OffRtg_avg"] - merged["DefRtg_avg"]
 
         # Differences between teams and opponents
         if "EfgPct_avg" in merged and "Opp_EfgPct_avg" in merged:
@@ -248,10 +250,13 @@ class DataCleaner:
             merged["TsDiff_avg"] = merged["TsPct_avg"] - merged["Opp_TsPct_avg"]
 
         for col in all_features:
-            if f"{col}_avg" in merged and f"Opp_{col}_avg" in merged:
-                merged[f"{col}_diff"] = merged[f"{col}_avg"] - merged[f"Opp_{col}_avg"]
+            left = f"{col}_avg"
+            right = f"Opp_{col}_avg"
+            if left in merged.columns and right in merged.columns:
+                merged[f"{col}_diff"] = merged[left] - merged[right]
 
         merged["HomeAdvantage"] = merged["IsHome"] - merged["Opp_IsHome"]
+        # Keep canonical orientation: only home team rows (consistent with model expectations)
         merged = merged[merged["IsHome"] == 1]
 
         # Final training columns
@@ -286,19 +291,24 @@ class DataCleaner:
         t1 = pd.read_csv(io.BytesIO(t1_bytes))
         t2 = pd.read_csv(io.BytesIO(t2_bytes))
 
-        # Standardize basic formatting
+        # Standardize basic formatting (match training cleaning)
         for df in (t1, t2):
-            df.columns = df.columns.str.strip().str.replace("\ufeff", "", regex=False)
+            df.columns = (
+                df.columns.str.strip()
+                .str.replace("\ufeff", "", regex=False)
+                .str.replace(" ", "", regex=False)
+            )
             df["GameId"] = df["GameId"].astype(str).str.zfill(10)
             df.sort_values("Date", inplace=True)
 
         # Compute metrics needed for prediction cleaning
         for df in (t1, t2):
             df["OffRtg"] = (df["Points"] / df["OffPoss"]) * 100
-            df["DefRtg"] = (df["Points"].shift(1) / df["DefPoss"]) * 100
+            # DefRtg should use previous team game points (shift per team)
+            df["DefRtg"] = (df.groupby("team")["Points"].shift(1) / df["DefPoss"]) * 100
             df["NetRtg"] = df["OffRtg"] - df["DefRtg"]
-            df["EfgDiff"] = df["EfgPct"].diff().fillna(0)
-            df["TsDiff"] = df["TsPct"].diff().fillna(0)
+            df["EfgDiff"] = df.groupby("team")["EfgPct"].diff().fillna(0)
+            df["TsDiff"] = df.groupby("team")["TsPct"].diff().fillna(0)
 
             all_cols = self.base_features + self.advanced_features
             for col in all_cols:
@@ -329,8 +339,10 @@ class DataCleaner:
 
         # Compute feature differences
         for col in self.base_features + self.advanced_features:
-            if f"{col}_avg" in merged and f"Opp_{col}_avg" in merged:
-                merged[f"{col}_diff"] = merged[f"{col}_avg"] - merged[f"Opp_{col}_avg"]
+            left = f"{col}_avg"
+            right = f"Opp_{col}_avg"
+            if left in merged.columns and right in merged.columns:
+                merged[f"{col}_diff"] = merged[left] - merged[right]
 
         merged["IsHome"] = 1
         merged["HomeAdvantage"] = 1
