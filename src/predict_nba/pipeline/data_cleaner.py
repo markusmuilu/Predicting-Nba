@@ -252,6 +252,7 @@ class DataCleaner:
                 merged[f"{col}_diff"] = merged[f"{col}_avg"] - merged[f"Opp_{col}_avg"]
 
         merged["HomeAdvantage"] = merged["IsHome"] - merged["Opp_IsHome"]
+        merged = merged[merged["IsHome"] == 1]
 
         # Final training columns
         final_cols = (
