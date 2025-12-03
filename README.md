@@ -83,7 +83,6 @@ src/predict_nba/
 │
 ├── pipeline/                      # Core ML & data pipeline
 │   │   bootstrap_model.py         # Ensures teams.json + trains & uploads model if missing
-│   │   daily_predictor.py         # Orchestrates daily_update + daily_generate
 │   │   data_cleaner.py            # Cleans training data and engineer features
 │   │   data_collector.py          # Collects raw logs from PBPStats into training CSV
 │   │   make_prediction.py         # High-level "predict this matchup" function

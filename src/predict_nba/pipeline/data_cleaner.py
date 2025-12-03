@@ -256,7 +256,6 @@ class DataCleaner:
                 merged[f"{col}_diff"] = merged[left] - merged[right]
 
         merged["HomeAdvantage"] = merged["IsHome"] - merged["Opp_IsHome"]
-        # Keep canonical orientation: only home team rows (consistent with model expectations)
         merged = merged[merged["IsHome"] == 1]
 
         # Final training columns

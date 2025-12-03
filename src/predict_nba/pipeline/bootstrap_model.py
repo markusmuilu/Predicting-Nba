@@ -106,8 +106,6 @@ def bootstrap_model():
         trainer = ModelTrainer()
         trainer.train_model()
 
-        # Mark bootstrap completion
-        open("/tmp/bootstrap_done", "w").close()
 
         logger.info("Bootstrap completed successfully.")
 
