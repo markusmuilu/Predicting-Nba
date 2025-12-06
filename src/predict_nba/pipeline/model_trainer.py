@@ -23,6 +23,7 @@ from sklearn.preprocessing import StandardScaler
 
 from predict_nba.utils.exception import CustomException
 from predict_nba.utils.logger import logger
+from predict_nba.pipeline.data_cleaner import DataCleaner
 
 
 class S3Client:
@@ -147,12 +148,24 @@ class ModelTrainer:
             if missing:
                 logger.warning(f"{len(missing)} missing features skipped: {missing}")
 
+
+            df = df.sort_values("Date")
+
+            cutoff = "2024-01-01"
+            df_train = df[df["Date"] < cutoff]
+            df_test  = df[df["Date"] >= cutoff]
+
+            X_train = df_train[available]
+            y_train = df_train["TeamWin"]
+            X_test = df_test[available]      
+            y_test = df_test["TeamWin"]    
             X = df[available]
             y = df["TeamWin"]
 
             logger.info(f"Training samples: {X.shape[0]} | features: {X.shape[1]}")
 
             # Train/test split
+            '''
             X_train, X_test, y_train, y_test = train_test_split(
                 X,
                 y,
@@ -160,6 +173,7 @@ class ModelTrainer:
                 stratify=y,
                 random_state=self.random_state,
             )
+            '''
 
             # Standardization
             scaler = StandardScaler().fit(X_train)
@@ -202,3 +216,8 @@ class ModelTrainer:
         except Exception as e:
             CustomException(f"train_model failed: {e}", sys)
             return None, None
+
+if __name__ == "__main__":
+    DataCleaner().clean_training_data()
+    trainer = ModelTrainer()
+    trainer.train_model()

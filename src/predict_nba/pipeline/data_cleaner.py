@@ -197,8 +197,7 @@ class DataCleaner:
 
         # Basic rating metrics
         data["OffRtg"] = (data["Points"] / data["OffPoss"]) * 100
-        # DefRtg must use the opponent points allowed in the previous team game -> shift per team
-        data["DefRtg"] = (data.groupby("team")["Points"].shift(1) / data["DefPoss"]) * 100
+        data["DefRtg"] = (data["Points"] / data["DefPoss"]) * 100
         data["NetRtg"] = data["OffRtg"] - data["DefRtg"]
         data["EfgDiff"] = data.groupby("team")["EfgPct"].diff().fillna(0)
         data["TsDiff"] = data.groupby("team")["TsPct"].diff().fillna(0)
@@ -211,7 +210,7 @@ class DataCleaner:
                     data.groupby("team")[col]
                     .transform(lambda x: x.shift(1).rolling(self.window_size, min_periods=self.window_size).mean())
                 )
-
+        print(data.columns)
         # Only keep rows where all averages are available
         avg_cols = [f"{c}_avg" for c in all_features if f"{c}_avg" in data.columns]
         data = data.dropna(subset=avg_cols)
@@ -236,18 +235,6 @@ class DataCleaner:
         merged["PointDifferential"] = merged["Points"] - merged["Opp_Points"]
         merged["TeamWin"] = (merged["PointDifferential"] > 0).astype(int)
 
-        # Compute DefRtg_avg and NetRtg_avg based on averages where available
-        if "Opp_Points" in merged and "DefPoss_avg" in merged:
-            merged["DefRtg_avg"] = (merged["Opp_Points"] / merged["DefPoss_avg"]) * 100
-        if "OffRtg_avg" in merged and "DefRtg_avg" in merged:
-            merged["NetRtg_avg"] = merged["OffRtg_avg"] - merged["DefRtg_avg"]
-
-        # Differences between teams and opponents
-        if "EfgPct_avg" in merged and "Opp_EfgPct_avg" in merged:
-            merged["EfgDiff_avg"] = merged["EfgPct_avg"] - merged["Opp_EfgPct_avg"]
-
-        if "TsPct_avg" in merged and "Opp_TsPct_avg" in merged:
-            merged["TsDiff_avg"] = merged["TsPct_avg"] - merged["Opp_TsPct_avg"]
 
         for col in all_features:
             left = f"{col}_avg"
@@ -260,13 +247,13 @@ class DataCleaner:
 
         # Final training columns
         final_cols = (
-            ["team", "Opponent", "IsHome", "HomeAdvantage", "PointDifferential", "TeamWin"]
+            ["team", "Date", "Opponent", "IsHome", "HomeAdvantage", "PointDifferential", "TeamWin"]
             + [f"{c}_avg" for c in all_features if f"{c}_avg" in merged.columns]
             + [f"Opp_{c}_avg" for c in all_features if f"Opp_{c}_avg" in merged.columns]
             + [f"{c}_diff" for c in all_features if f"{c}_diff" in merged.columns]
         )
 
-        final = merged[final_cols].dropna()
+        final = merged[final_cols].dropna().sort_values("Date")
 
         if upload:
             csv_bytes = final.to_csv(index=False).encode("utf-8")
