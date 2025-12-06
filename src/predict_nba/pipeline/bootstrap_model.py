@@ -95,9 +95,9 @@ def bootstrap_model():
         ensure_teams_json()
 
         # Collect and prepare data
-        #collector = DataCollector()
-        #seasons = ["2015-16", "2016-2017", "2017-18", "2018-19", "2019-20", "2020-21","2021-22", "2022-23", "2023-24", "2024-25"]
-        #collector.collect_training_data(seasons)
+        collector = DataCollector()
+        seasons = ["2015-16", "2016-2017", "2017-18", "2018-19", "2019-20", "2020-21","2021-22", "2022-23", "2023-24", "2024-25"]
+        collector.collect_training_data(seasons)
 
         cleaner = DataCleaner()
         cleaner.clean_training_data()
