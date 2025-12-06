@@ -39,6 +39,14 @@ def update_predictions():
             logger.info("No current_predictions found, nothing to update.")
             return []
 
+        #Check for NO_GAMES_TODAY placeholder
+        if rows and rows[0].get("team") == "NO_GAMES_TODAY":
+            logger.info("Skipping update — previous day had NO_GAMES_TODAY entry.")
+
+            # Remove placeholder from current predictions:
+            history.save_current_predictions([])
+            return []
+        
         dates = sorted({r["date"] for r in rows if "date" in r})
         if not dates:
             logger.info("current_predictions has rows but no valid dates, skipping update.")
