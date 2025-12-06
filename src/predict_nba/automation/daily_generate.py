@@ -112,8 +112,23 @@ def generate_new_predictions():
             time.sleep(0.3)
 
         if not new_rows:
-            logger.info("No new predictions generated for today.")
-            return []
+            logger.info("No NBA games today, creating placeholder prediction.")
+
+            today = datetime.utcnow().strftime("%Y-%m-%d")
+            #Place holder needed, as powerbi update fails with empty current_predictions
+            placeholder = {
+                "team": "NO_GAMES_TODAY",
+                "opponent": None,
+                "date": today,
+                "prediction": False,
+                "confidence": 100.0,
+                "gameId": f"NO_GAMES_{today.replace('-', '')}",
+            }
+
+            existing = history.load_current_predictions() or []
+            history.save_current_predictions(existing + [placeholder])
+
+            return [placeholder]
 
         combined = existing + new_rows
         history.save_current_predictions(combined)
