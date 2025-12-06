@@ -167,8 +167,10 @@ class DataCleaner:
             .str.replace(" ", "", regex=False)
         )
 
-        data = data.sort_values(["team", "Date"])
+        data = data.sort_values(["team", "season", "Date"])
         data["GameId"] = data["GameId"].astype(str).str.zfill(10)
+
+
 
         # Ensure required raw fields exist
         required = [
@@ -192,8 +194,42 @@ class DataCleaner:
             else None,
             axis=1,
         )
+
         data = data.dropna(subset=["IsHome"])
         data["IsHome"] = data["IsHome"].astype(int)
+
+
+        # Add the home and away points
+        data["HomePoints"] = data["GameId"].map(lambda gid: home_away_map.get(gid, {}).get("HomePoints"))
+        data["AwayPoints"] = data["GameId"].map(lambda gid: home_away_map.get(gid, {}).get("AwayPoints"))
+
+        #Add opponent points as we already have team points as points
+        data["OppPoints"] = data.apply(
+            lambda r: r["AwayPoints"] if r["IsHome"] == 1 else r["HomePoints"],
+            axis=1
+        )
+
+        data["PointDifferential"] = data["Points"] - data["OppPoints"]
+        data["TeamWin"] = (data["PointDifferential"] > 0).astype(int)
+
+
+        # Count season wins, lossses win % and is it back to back game and how many games in the last 10 days
+        data = data.sort_values(["team", "season", "Date"])
+
+        # Wins can be counted by for a row, take cumulative sum of teamwin column for that team during this season before this game 
+        data["SeasonWins"] = data.groupby(["team", "season"])["TeamWin"].cumsum().shift(1).fillna(0)
+
+        # Games played is just counts all the rows before this one for that team during this season, Pct by deviding wins by games played, losses by subtracting wins from games played
+        data["SeasonGames"] = data.groupby(["team", "season"])["TeamWin"].cumcount().fillna(0)
+        data["SeasonWinPct"] = data["SeasonWins"] / data["SeasonGames"].fillna(0)
+        data["SeasonLosses"] = data["SeasonGames"] - data["SeasonWins"].fillna(0)
+
+        # Back to back games can be calculated by checking the date difference between this game and previous game for a team in season
+        data["Date"] = pd.to_datetime(data["Date"])
+        data["Prevdate"] = data.groupby(["team", "season"])["Date"].shift(1)
+        data["IsBackToBack"] = (data["Date"] - data["Prevdate"]).dt.days.eq(1).astype(int)
+
+
 
         # Basic rating metrics
         data["OffRtg"] = (data["Points"] / data["OffPoss"]) * 100
@@ -207,16 +243,16 @@ class DataCleaner:
         for col in all_features:
             if col in data.columns:
                 data[f"{col}_avg"] = (
-                    data.groupby("team")[col]
-                    .transform(lambda x: x.shift(1).rolling(self.window_size, min_periods=self.window_size).mean())
+                    data.groupby(["team", "season"])[col]
+                    .transform(lambda x: x.shift(1).rolling(self.window_size, min_periods=1).mean())
                 )
-        print(data.columns)
         # Only keep rows where all averages are available
         avg_cols = [f"{c}_avg" for c in all_features if f"{c}_avg" in data.columns]
         data = data.dropna(subset=avg_cols)
 
         # Build opponent feature set
-        opp_cols = avg_cols
+        season_cols = ["SeasonWins", "SeasonLosses", "SeasonWinPct", "IsBackToBack"]
+        opp_cols = avg_cols + season_cols
         opp_df = data[["team", "GameId", "Points"] + opp_cols + ["IsHome"]].copy()
         opp_df.columns = (
             ["OpponentTeam", "GameId", "Opp_Points"]
@@ -230,12 +266,7 @@ class DataCleaner:
             right_on=["OpponentTeam", "GameId"],
             how="left",
         )
-
-        # Labels and additional metrics
-        merged["PointDifferential"] = merged["Points"] - merged["Opp_Points"]
-        merged["TeamWin"] = (merged["PointDifferential"] > 0).astype(int)
-
-
+        
         for col in all_features:
             left = f"{col}_avg"
             right = f"Opp_{col}_avg"
@@ -248,8 +279,10 @@ class DataCleaner:
         # Final training columns
         final_cols = (
             ["team", "Date", "Opponent", "IsHome", "HomeAdvantage", "PointDifferential", "TeamWin"]
+            + season_cols
             + [f"{c}_avg" for c in all_features if f"{c}_avg" in merged.columns]
             + [f"Opp_{c}_avg" for c in all_features if f"Opp_{c}_avg" in merged.columns]
+            + [f"Opp_{c}" for c in season_cols if f"Opp_{c}" in merged.columns]
             + [f"{c}_diff" for c in all_features if f"{c}_diff" in merged.columns]
         )
 
