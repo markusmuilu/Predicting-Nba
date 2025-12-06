@@ -23,6 +23,7 @@ from sklearn.preprocessing import StandardScaler
 
 from predict_nba.utils.exception import CustomException
 from predict_nba.utils.logger import logger
+from predict_nba.pipeline.data_cleaner import DataCleaner
 
 
 class S3Client:
@@ -94,12 +95,14 @@ class ModelTrainer:
         self.features = [
             "OffPoss_avg", "DefPoss_avg", "Pace_avg", "Fg3Pct_avg", "Fg2Pct_avg", "TsPct_avg",
             "OffRtg_avg", "DefRtg_avg", "NetRtg_avg", "EfgDiff_avg", "TsDiff_avg",
-            "Rebounds_avg", "Steals_avg", "Blocks_avg",
+            "Rebounds_avg", "Steals_avg", "Blocks_avg", "SeasonWins", "SeasonLosses", 
+            "SeasonWinPct", "IsBackToBack", 
 
             "Opp_OffPoss_avg", "Opp_DefPoss_avg", "Opp_Pace_avg", "Opp_Fg3Pct_avg",
             "Opp_Fg2Pct_avg", "Opp_TsPct_avg", "Opp_OffRtg_avg", "Opp_DefRtg_avg",
             "Opp_NetRtg_avg", "Opp_EfgDiff_avg", "Opp_TsDiff_avg",
-            "Opp_Rebounds_avg", "Opp_Steals_avg", "Opp_Blocks_avg",
+            "Opp_Rebounds_avg", "Opp_Steals_avg", "Opp_Blocks_avg", "Opp_SeasonWins", 
+            "Opp_SeasonLosses", "Opp_SeasonWinPct", "Opp_IsBackToBack", 
 
             "OffPoss_diff", "DefPoss_diff", "Pace_diff", "Fg3Pct_diff", "Fg2Pct_diff",
             "TsPct_diff", "OffRtg_diff", "DefRtg_diff", "NetRtg_diff", "EfgDiff_diff",
@@ -147,12 +150,24 @@ class ModelTrainer:
             if missing:
                 logger.warning(f"{len(missing)} missing features skipped: {missing}")
 
+
+            df = df.sort_values("Date")
+
+            cutoff = "2024-01-01"
+            df_train = df[df["Date"] < cutoff]
+            df_test  = df[df["Date"] >= cutoff]
+
+            X_train = df_train[available]
+            y_train = df_train["TeamWin"]
+            X_test = df_test[available]      
+            y_test = df_test["TeamWin"]    
             X = df[available]
             y = df["TeamWin"]
 
             logger.info(f"Training samples: {X.shape[0]} | features: {X.shape[1]}")
 
             # Train/test split
+            '''
             X_train, X_test, y_train, y_test = train_test_split(
                 X,
                 y,
@@ -160,6 +175,7 @@ class ModelTrainer:
                 stratify=y,
                 random_state=self.random_state,
             )
+            '''
 
             # Standardization
             scaler = StandardScaler().fit(X_train)
@@ -202,3 +218,8 @@ class ModelTrainer:
         except Exception as e:
             CustomException(f"train_model failed: {e}", sys)
             return None, None
+
+if __name__ == "__main__":
+    DataCleaner().clean_training_data()
+    trainer = ModelTrainer()
+    trainer.train_model()

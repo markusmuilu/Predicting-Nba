@@ -54,6 +54,26 @@ class ModelPredictor:
 
     def __init__(self):
         load_dotenv()
+
+        self.features = [
+            "OffPoss_avg", "DefPoss_avg", "Pace_avg", "Fg3Pct_avg", "Fg2Pct_avg", "TsPct_avg",
+            "OffRtg_avg", "DefRtg_avg", "NetRtg_avg", "EfgDiff_avg", "TsDiff_avg",
+            "Rebounds_avg", "Steals_avg", "Blocks_avg", "SeasonWins", "SeasonLosses", 
+            "SeasonWinPct", "IsBackToBack",
+
+            "Opp_OffPoss_avg", "Opp_DefPoss_avg", "Opp_Pace_avg", "Opp_Fg3Pct_avg",
+            "Opp_Fg2Pct_avg", "Opp_TsPct_avg", "Opp_OffRtg_avg", "Opp_DefRtg_avg",
+            "Opp_NetRtg_avg", "Opp_EfgDiff_avg", "Opp_TsDiff_avg",
+            "Opp_Rebounds_avg", "Opp_Steals_avg", "Opp_Blocks_avg",
+            "Opp_SeasonWins", "Opp_SeasonLosses", "Opp_SeasonWinPct", "Opp_IsBackToBack",
+
+            "OffPoss_diff", "DefPoss_diff", "Pace_diff", "Fg3Pct_diff", "Fg2Pct_diff",
+            "TsPct_diff", "OffRtg_diff", "DefRtg_diff", "NetRtg_diff", "EfgDiff_diff",
+            "TsDiff_diff", "Rebounds_diff", "Steals_diff", "Blocks_diff",
+
+            "IsHome", "HomeAdvantage",
+        ]
+
         try:
             self.s3 = S3Client()
         except Exception as e:
@@ -104,12 +124,9 @@ class ModelPredictor:
             df = pd.read_csv(io.BytesIO(data_bytes))
 
             # Select inference features
-            feature_cols = [
-                c for c in df.columns
-                if c.endswith("_avg")
-                or c.endswith("_diff")
-                or c in ["IsHome", "HomeAdvantage"]
-            ]
+            feature_cols = [f for f in self.features if f in df.columns]
+
+
 
             if not feature_cols:
                 CustomException("Prediction data contains no valid features.", sys)
