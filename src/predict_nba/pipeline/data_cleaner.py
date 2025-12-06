@@ -23,6 +23,8 @@ from dotenv import load_dotenv
 from predict_nba.utils.exception import CustomException
 from predict_nba.utils.logger import logger
 
+pd.set_option("future.no_silent_downcasting", True)
+
 
 class S3Client:
     """Simple S3 helper for downloading and uploading CSV files."""
@@ -320,11 +322,29 @@ class DataCleaner:
             df["GameId"] = df["GameId"].astype(str).str.zfill(10)
             df.sort_values("Date", inplace=True)
 
+        seasons = t1["season"].unique()
+        home_away_map = self._fetch_home_away_map(seasons)
+
+
+        for df in (t1, t2):
+            # Add the ishome and home and away points
+            df["IsHome"] = df["GameId"].map(lambda gid: home_away_map.get(gid, {}).get("HomeTeam") == df["team"].iloc[0]).astype(int)
+            df["HomePoints"] = df["GameId"].map(lambda gid: home_away_map.get(gid, {}).get("HomePoints"))
+            df["AwayPoints"] = df["GameId"].map(lambda gid: home_away_map.get(gid, {}).get("AwayPoints"))
+
+            #Add opponent points as we already have team points as points
+            df["OppPoints"] = df.apply(
+                lambda r: r["AwayPoints"] if r["IsHome"] == 1 else r["HomePoints"],
+                axis=1
+            )
+
+            df["PointDifferential"] = df["Points"] - df["OppPoints"]
+            df["TeamWin"] = (df["PointDifferential"] > 0).astype(int)
         # Compute metrics needed for prediction cleaning
         for df in (t1, t2):
             df["OffRtg"] = (df["Points"] / df["OffPoss"]) * 100
             # DefRtg should use previous team game points (shift per team)
-            df["DefRtg"] = (df.groupby("team")["Points"].shift(1) / df["DefPoss"]) * 100
+            df["DefRtg"] = (df["OppPoints"] / df["DefPoss"]) * 100
             df["NetRtg"] = df["OffRtg"] - df["DefRtg"]
             df["EfgDiff"] = df.groupby("team")["EfgPct"].diff().fillna(0)
             df["TsDiff"] = df.groupby("team")["TsPct"].diff().fillna(0)
@@ -336,6 +356,21 @@ class DataCleaner:
                         df.groupby("team")[col]
                         .transform(lambda x: x.shift(1).rolling(self.window_size, min_periods=1).mean())
                     )
+
+        # Season wins, losses, pct, back to back
+        t1 = t1.sort_values("Date")
+        t2 = t2.sort_values("Date")
+        for df in (t1, t2):
+
+            df["SeasonWins"] = df.groupby(["team", "season"])["TeamWin"].cumsum().shift(1).fillna(0)
+            df["SeasonGames"] = df.groupby(["team", "season"])["TeamWin"].cumcount()
+            df["SeasonWinPct"] = (df["SeasonWins"] / df["SeasonGames"].replace(0, pd.NA)).fillna(0)
+            df["SeasonLosses"] = df["SeasonGames"] - df["SeasonWins"]
+
+            df["Date"] = pd.to_datetime(df["Date"])
+            df["PrevDate"] = df.groupby(["team", "season"])["Date"].shift(1)
+            df["IsBackToBack"] = (df["Date"] - df["PrevDate"]).dt.days.eq(1).astype(int)
+
 
         # Use only the most recent row for each team
         t1_latest = t1.tail(1)
@@ -350,7 +385,21 @@ class DataCleaner:
             ignore_index=True,
         )
 
-        opp_cols = [f"{c}_avg" for c in self.base_features + self.advanced_features]
+        season_cols = ["SeasonWins", "SeasonLosses", "SeasonWinPct", "IsBackToBack"]
+
+        for col in season_cols:
+            if col not in merged.columns:
+                merged[col] = merged.apply(
+                    lambda r: t1_latest[col].iloc[0] if r["team"] == t1_latest["team"].iloc[0]
+                    else t2_latest[col].iloc[0],
+                    axis=1
+                )
+
+        opp_cols = (
+            [f"{c}_avg" for c in self.base_features + self.advanced_features]
+            + season_cols
+        )
+
         opp_df = merged[["team"] + opp_cols].copy()
         opp_df.columns = ["Opponent"] + [f"Opp_{c}" for c in opp_cols]
 
@@ -373,3 +422,4 @@ class DataCleaner:
             self.s3.upload_csv_bytes(csv_bytes, out_key)
 
         return merged
+
