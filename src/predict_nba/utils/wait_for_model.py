@@ -2,7 +2,8 @@ import time
 from predict_nba.utils.s3_client import S3Client
 from predict_nba.utils.logger import logger
 
-MODEL_KEY = "models/prediction_model.skops"
+MODEL_KEY = "models/model.npz"
+SCALER_KEY = "models/scaler.skops"
 TEAMS_KEY = "teams/teams.json"
 
 def wait_for_required_files():
@@ -13,7 +14,8 @@ def wait_for_required_files():
 
     required = {
         "model": MODEL_KEY,
-        "teams": TEAMS_KEY,
+        "scaler": SCALER_KEY,
+        "teams": TEAMS_KEY
     }
 
     while True:
