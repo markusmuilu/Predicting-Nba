@@ -21,54 +21,7 @@ from dotenv import load_dotenv
 
 from predict_nba.utils.exception import CustomException
 from predict_nba.utils.logger import logger
-
-
-class S3Client:
-    """Handles uploads and downloads between the application and S3."""
-
-    def __init__(self):
-        load_dotenv()
-        self.bucket = os.getenv("AWS_S3_BUCKET_NAME")
-        region = os.getenv("AWS_REGION")
-
-        try:
-            self.s3 = boto3.client(
-                "s3",
-                region_name=region,
-                aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-                aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-            )
-        except Exception as e:
-            raise CustomException(f"S3 initialization failed: {e}", sys)
-
-    def upload_csv(self, df: pd.DataFrame, key: str):
-        """Upload a DataFrame to S3 under the given key."""
-        try:
-            buffer = io.StringIO()
-            df.to_csv(buffer, index=False)
-            payload = buffer.getvalue().encode("utf-8")
-
-            self.s3.put_object(
-                Bucket=self.bucket,
-                Key=key,
-                Body=payload,
-                ContentType="text/csv",
-            )
-
-            logger.info(f"Uploaded {key} ({len(df)} rows) to S3")
-
-        except Exception as e:
-            CustomException(f"S3 upload failed for {key}: {e}", sys)
-
-    def download_json(self, key: str):
-        """Download a JSON file from S3 and return a Python object."""
-        try:
-            resp = self.s3.get_object(Bucket=self.bucket, Key=key)
-            return json.loads(resp["Body"].read().decode("utf-8"))
-        except Exception as e:
-            CustomException(f"S3 JSON download failed for {key}: {e}", sys)
-            return None
-
+from predict_nba.utils.s3_client import S3Client
 
 class ConfigCollection:
     """Loads team metadata from S3 (teams.json)."""
@@ -80,7 +33,7 @@ class ConfigCollection:
             self.s3 = S3Client()
             logger.info("Loading team list from S3...")
 
-            teams = self.s3.download_json(self.TEAMS_KEY)
+            teams = json.loads(self.s3.download(self.TEAMS_KEY).decode("utf-8"))
             if not teams:
                 CustomException("Team list in S3 is empty or missing.", sys)
                 self.teams = []
@@ -172,7 +125,10 @@ class DataCollector:
             logger.info(f"Final training dataset contains {len(all_data)} rows")
 
             if upload and not all_data.empty:
-                self.s3.upload_csv(all_data, "training/training_data.csv")
+                buffer = io.StringIO()
+                all_data.to_csv(buffer, index=False)
+                data = buffer.getvalue().encode("utf-8")
+                self.s3.upload("training/training_data.csv", data, "text/csv")
 
             return all_data
 
@@ -224,7 +180,10 @@ class DataCollector:
 
             if upload:
                 key = f"predict/{team_name}.csv"
-                self.s3.upload_csv(df, key)
+                buffer = io.StringIO()
+                df.to_csv(buffer, index=False)
+                data = buffer.getvalue().encode("utf-8")
+                self.s3.upload(key, data)
                 logger.info(f"Uploaded {team_name}.csv to S3 as {key}")
 
             time.sleep(2)

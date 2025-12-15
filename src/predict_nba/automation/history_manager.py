@@ -7,10 +7,12 @@ Files:
 """
 
 import sys
+import json
+import io
 
 import numpy as np
 
-from src.predict_nba.utils.s3_client import S3Client
+from predict_nba.utils.s3_client import S3Client
 from predict_nba.utils.exception import CustomException
 
 
@@ -42,7 +44,7 @@ class HistoryManager:
         """Return the list of current predictions from S3 (or [])."""
         if self.s3 is None:
             return []
-        return self.s3.load_json_list(self.CURRENT_KEY)
+        return json.loads(self.s3.download(self.CURRENT_KEY).decode("uft-8").strip())
 
     def save_current_predictions(self, rows):
         """Overwrite current_predictions JSON in S3."""
@@ -50,7 +52,8 @@ class HistoryManager:
             return
         # Clean numpy types to keep JSON friendly
         cleaned = [{k: self._clean(v) for k, v in row.items()} for row in rows]
-        self.s3.save_json_list(cleaned, self.CURRENT_KEY)
+        data = json.dumps(cleaned, indent=2).encode("utf-8")
+        self.s3.upload(self.CURRENT_KEY, data, "application/json")
 
     def append_history(self, new_entries):
         """
@@ -62,10 +65,10 @@ class HistoryManager:
             return
 
         new_entries = [{k: self._clean(v) for k, v in row.items()} for row in new_entries]
-        history = self.s3.load_json_list(self.HISTORY_KEY)
+        history = json.loads(self.s3.download(self.HISTORY_KEY).decode("utf-8").strip())
         existing_ids = {h.get("gameId") for h in history if "gameId" in h}
 
         to_add = [e for e in new_entries if e.get("gameId") not in existing_ids]
         history.extend(to_add)
 
-        self.s3.save_json_list(history, self.HISTORY_KEY)
+        self.s3.upload(self.HISTORY_KEY, history, "application/json")

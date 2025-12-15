@@ -6,6 +6,7 @@ Bootstrap script that ensures:
 
 import sys
 import requests
+import json
 from dotenv import load_dotenv
 from botocore.exceptions import ClientError
 
@@ -54,7 +55,8 @@ def ensure_teams_json():
 
     # Upload to S3
     try:
-        s3.upload_json(TEAMS_KEY, {"teams": teams_clean})
+        data = json.dumps({"teams": teams_clean}, indent=2).encode("utf-8")
+        s3.upload(TEAMS_KEY, data, "application/json")
         logger.info("Uploaded teams.json to S3")
     except Exception as e:
         raise CustomException(f"Failed to upload teams.json: {e}", sys)

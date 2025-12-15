@@ -2,7 +2,7 @@
 Model prediction module for the NBA prediction project.
 
 Responsibilities:
-- Load the trained model + scaler from S3 (.skops bundle)
+- Load the trained model + scaler from S3 (.npz & .skops)
 - Load the cleaned matchup CSV from S3
 - Prepare features for inference
 - Predict the winner and confidence percentage
@@ -14,39 +14,16 @@ import sys
 
 import boto3
 import pandas as pd
+import numpy as np
 import skops.io as sio
 from dotenv import load_dotenv
 
+from nn import NeuralNetwork, load_model
 from predict_nba.utils.exception import CustomException
 from predict_nba.utils.logger import logger
+from predict_nba.utils.s3_client import S3Client
 
 
-class S3Client:
-    """Utility class for downloading binary files from S3."""
-
-    def __init__(self):
-        load_dotenv()
-        self.bucket = os.getenv("AWS_S3_BUCKET_NAME")
-        region = os.getenv("AWS_REGION")
-
-        try:
-            self.s3 = boto3.client(
-                "s3",
-                region_name=region,
-                aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-                aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-            )
-        except Exception as e:
-            raise CustomException(f"S3 initialization failed: {e}", sys)
-
-    def download_bytes(self, key: str):
-        """Download raw bytes from S3."""
-        try:
-            resp = self.s3.get_object(Bucket=self.bucket, Key=key)
-            return resp["Body"].read()
-        except Exception as e:
-            CustomException(f"S3 download failed for {key}: {e}", sys)
-            return None
 
 
 class ModelPredictor:
@@ -85,7 +62,7 @@ class ModelPredictor:
         Predicts the winner between two teams using the trained model.
 
         Steps:
-        - Download model bundle (.skops)
+        - Download model and scaler
         - Extract model + scaler
         - Download cleaned matchup data
         - Select relevant features
@@ -96,28 +73,39 @@ class ModelPredictor:
             return None
 
         try:
-            model_key = "models/prediction_model.skops"
+            model_key = "models/model.npz"
+            scaler_key = "models/scaler.skops"
             data_key = f"predict/clean/{team1}vs{team2}.csv"
 
-            # Load model bundle
+            # Load model 
             logger.info(f"Downloading model: {model_key}")
-            model_bytes = self.s3.download_bytes(model_key)
+            model_bytes = self.s3.download(model_key)
             if model_bytes is None:
                 return None
 
-            untrusted = sio.get_untrusted_types(data=model_bytes)
-            bundle = sio.loads(model_bytes, trusted=untrusted)
+            with open("tmp_model.npz", "wb") as f:
+                f.write(model_bytes)
 
-            model = bundle.get("model")
-            scaler = bundle.get("scaler")
+            model = load_model("tmp_model.npz")
+
+            # Load scaler
+            logger.info(f"Downloading scaler: {scaler_key}")
+            scaler_bytes = self.s3.download(scaler_key)
+            if scaler_bytes is None:
+                return None
+
+            untrusted = sio.get_untrusted_types(data=scaler_bytes)
+            bundle = sio.loads(scaler_bytes, trusted=untrusted)
+            scaler = bundle["scaler"]
+
 
             if model is None or scaler is None:
-                CustomException("Model bundle missing 'model' or 'scaler'.", sys)
+                CustomException("Model or scaler missing.", sys)
                 return None
 
             # Load matchup data
             logger.info(f"Downloading cleaned matchup data: {data_key}")
-            data_bytes = self.s3.download_bytes(data_key)
+            data_bytes = self.s3.download(data_key)
             if data_bytes is None:
                 return None
 
@@ -136,16 +124,29 @@ class ModelPredictor:
             X_scaled = scaler.transform(X)
 
             # Predict outcome
-            pred = model.predict(X_scaled)[0]
-            prob = model.predict_proba(X_scaled)[0][1]
+            row = X_scaled[0]                
+            out = model.predict(row)         
 
-            winner = team1 if pred == 1 else team2
-            confidence = round(prob * 100 if pred == 1 else (1 - prob) * 100, 2)
+            result = out["result"]
+            confidence = out["confidence"]
+
+            winner = team1 if result == 1 else team2
+            confidence = round(confidence * 100, 2)
 
             logger.info(f"Predicted: {winner} ({confidence}%)")
 
-            return {"winner": winner, "confidence": confidence}
+            return {
+                "winner": winner,
+                "confidence": confidence
+            }
 
         except Exception as e:
             CustomException(f"predict_matchup failed: {e}", sys)
             return None
+
+if __name__ == "__main__":
+    team1 = "BKN"
+    team2 = "NOP"
+
+    predictor = ModelPredictor()
+    predictor.predict_matchup(team1,team2)

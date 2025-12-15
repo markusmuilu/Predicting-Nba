@@ -10,3 +10,4 @@ pytz
 skops
 joblib
 boto3
+matplotlib
