@@ -17,38 +17,13 @@ import pandas as pd
 import numpy as np
 import skops.io as sio
 from dotenv import load_dotenv
-from nn import NeuralNetwork, load_model
 
+from nn import NeuralNetwork, load_model
 from predict_nba.utils.exception import CustomException
 from predict_nba.utils.logger import logger
+from predict_nba.utils.s3_client import S3Client
 
 
-class S3Client:
-    """Utility class for downloading binary files from S3."""
-
-    def __init__(self):
-        load_dotenv()
-        self.bucket = os.getenv("AWS_S3_BUCKET_NAME")
-        region = os.getenv("AWS_REGION")
-
-        try:
-            self.s3 = boto3.client(
-                "s3",
-                region_name=region,
-                aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-                aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-            )
-        except Exception as e:
-            raise CustomException(f"S3 initialization failed: {e}", sys)
-
-    def download_bytes(self, key: str):
-        """Download raw bytes from S3."""
-        try:
-            resp = self.s3.get_object(Bucket=self.bucket, Key=key)
-            return resp["Body"].read()
-        except Exception as e:
-            CustomException(f"S3 download failed for {key}: {e}", sys)
-            return None
 
 
 class ModelPredictor:
@@ -104,7 +79,7 @@ class ModelPredictor:
 
             # Load model 
             logger.info(f"Downloading model: {model_key}")
-            model_bytes = self.s3.download_bytes(model_key)
+            model_bytes = self.s3.download(model_key)
             if model_bytes is None:
                 return None
 
@@ -115,7 +90,7 @@ class ModelPredictor:
 
             # Load scaler
             logger.info(f"Downloading scaler: {scaler_key}")
-            scaler_bytes = self.s3.download_bytes(scaler_key)
+            scaler_bytes = self.s3.download(scaler_key)
             if scaler_bytes is None:
                 return None
 
@@ -130,7 +105,7 @@ class ModelPredictor:
 
             # Load matchup data
             logger.info(f"Downloading cleaned matchup data: {data_key}")
-            data_bytes = self.s3.download_bytes(data_key)
+            data_bytes = self.s3.download(data_key)
             if data_bytes is None:
                 return None
 

@@ -25,47 +25,8 @@ from sklearn.preprocessing import StandardScaler
 from predict_nba.utils.exception import CustomException
 from predict_nba.utils.logger import logger
 from predict_nba.pipeline.data_cleaner import DataCleaner
+from predict_nba.utils.s3_client import S3Client
 
-
-class S3Client:
-    """Handles downloading training data and uploading model files."""
-
-    def __init__(self):
-        load_dotenv()
-        self.bucket = os.getenv("AWS_S3_BUCKET_NAME")
-        region = os.getenv("AWS_REGION")
-
-        try:
-            self.s3 = boto3.client(
-                "s3",
-                region_name=region,
-                aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-                aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-            )
-        except Exception as e:
-            raise CustomException(f"S3 initialization failed: {e}", sys)
-
-    def download_csv(self, key: str):
-        """Download a CSV file from S3 as raw bytes."""
-        try:
-            resp = self.s3.get_object(Bucket=self.bucket, Key=key)
-            return resp["Body"].read()
-        except Exception as e:
-            CustomException(f"S3 download failed for {key}: {e}", sys)
-            return None
-
-    def upload_bytes(self, data: bytes, key: str, content_type="application/octet-stream"):
-        """Upload raw bytes to S3."""
-        try:
-            self.s3.put_object(
-                Bucket=self.bucket,
-                Key=key,
-                Body=data,
-                ContentType=content_type,
-            )
-            logger.info(f"Uploaded {key} to S3")
-        except Exception as e:
-            CustomException(f"S3 upload failed for {key}: {e}", sys)
 
 
 class ModelTrainer:
@@ -74,10 +35,10 @@ class ModelTrainer:
     def __init__(
         self,
         model_type="neural_network",
-        epochs = 50,
+        epochs = 55,
         lr=0.001,
         batch_size=32,
-        layers=[63,32,1]
+        layers=[128,64,32,1]
     ):
         self.model_type = model_type
         self.epochs = epochs
@@ -134,7 +95,7 @@ class ModelTrainer:
             return None, None
 
         try:
-            raw = self.s3.download_csv(data_key)
+            raw = self.s3.download(data_key)
             if raw is None:
                 return None, None
 
@@ -207,7 +168,7 @@ class ModelTrainer:
             logger.info("Classification report:\n" + classification_report(y_test_np, y_pred))
 
 
-            # Save model and scaler to S3
+            # Save model model to S3
             if save:
                 scal = {"scaler": scaler}
                 scal_tmp_path = "scaler.skops"
@@ -217,18 +178,18 @@ class ModelTrainer:
                 with open(scal_tmp_path, "rb") as f:
                     raw_bytes = f.read()
 
-                self.s3.upload_bytes(
-                    raw_bytes,
+                self.s3.upload(
                     "models/scaler.skops",
+                    raw_bytes,
                     content_type="application/octet-stream",
                 )
 
                 with open(model_tmp_path, "rb") as f:
                     raw_bytes = f.read()
 
-                self.s3.upload_bytes(
-                    raw_bytes,
+                self.s3.upload(
                     "models/model.npz",
+                    raw_bytes,
                     content_type="application/octet-stream",
                 )
 

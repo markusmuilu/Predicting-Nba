@@ -1,5 +1,5 @@
 """
-High-level API for daily prediction automation.
+High-level class for daily prediction automation.
 
 Provides a small wrapper around:
 - update_predictions()  (finished games → history)
@@ -38,3 +38,7 @@ class DailyPredictor:
         updated = self.run_update_only()
         created = self.run_generate_only()
         return {"updated": updated, "created": created}
+
+if __name__ == "__main__":
+    dp = DailyPredictor()
+    dp.run_all()

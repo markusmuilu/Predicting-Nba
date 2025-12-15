@@ -22,51 +22,9 @@ from dotenv import load_dotenv
 
 from predict_nba.utils.exception import CustomException
 from predict_nba.utils.logger import logger
+from predict_nba.utils.s3_client import S3Client
 
 pd.set_option("future.no_silent_downcasting", True)
-
-
-class S3Client:
-    """Simple S3 helper for downloading and uploading CSV files."""
-
-    def __init__(self):
-        load_dotenv()
-        self.bucket = os.getenv("AWS_S3_BUCKET_NAME")
-        region = os.getenv("AWS_REGION")
-
-        try:
-            self.s3 = boto3.client(
-                "s3",
-                region_name=region,
-                aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-                aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-            )
-        except Exception as e:
-            # Fail fast: raising to ensure caller knows initialization failed
-            raise CustomException(f"S3 initialization failed: {e}", sys)
-
-    def download_csv(self, key: str):
-        """Return raw CSV bytes from S3."""
-        try:
-            resp = self.s3.get_object(Bucket=self.bucket, Key=key)
-            return resp["Body"].read()
-        except Exception as e:
-            # raise instead of silently creating an exception object
-            raise CustomException(f"S3 download failed for {key}: {e}", sys)
-
-    def upload_csv_bytes(self, csv_bytes: bytes, key: str):
-        """Upload CSV bytes to S3."""
-        try:
-            self.s3.put_object(
-                Bucket=self.bucket,
-                Key=key,
-                Body=csv_bytes,
-                ContentType="text/csv",
-            )
-            logger.info(f"Uploaded {key} to S3")
-        except Exception as e:
-            # raise instead of silently creating an exception object
-            raise CustomException(f"S3 upload failed for {key}: {e}", sys)
 
 
 class DataCleaner:
@@ -156,7 +114,7 @@ class DataCleaner:
         if self.s3 is None:
             raise CustomException("S3 client not initialized.", sys)
 
-        raw = self.s3.download_csv(key)
+        raw = self.s3.download(key)
         if raw is None:
             return None
 
@@ -292,7 +250,7 @@ class DataCleaner:
 
         if upload:
             csv_bytes = final.to_csv(index=False).encode("utf-8")
-            self.s3.upload_csv_bytes(csv_bytes, "clean/training_data_clean.csv")
+            self.s3.upload("clean/training_data_clean.csv", csv_bytes, "text/csv")
 
         return final
 
@@ -304,8 +262,8 @@ class DataCleaner:
         key1 = f"predict/{team1}.csv"
         key2 = f"predict/{team2}.csv"
 
-        t1_bytes = self.s3.download_csv(key1)
-        t2_bytes = self.s3.download_csv(key2)
+        t1_bytes = self.s3.download(key1)
+        t2_bytes = self.s3.download(key2)
         if t1_bytes is None or t2_bytes is None:
             return None
 
@@ -419,7 +377,7 @@ class DataCleaner:
         csv_bytes = merged.to_csv(index=False).encode("utf-8")
 
         if upload:
-            self.s3.upload_csv_bytes(csv_bytes, out_key)
+            self.s3.upload(out_key, csv_bytes, "text/csv")
 
         return merged
 

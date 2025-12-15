@@ -13,7 +13,7 @@ from datetime import datetime
 
 import requests
 
-from predict_nba.automation.espn_utils import espn_to_est_date, normalize_abbr
+from predict_nba.utils.espn import espn_to_est_date, normalize_abbr
 from predict_nba.automation.history_manager import HistoryManager
 from predict_nba.pipeline.make_prediction import MakePrediction
 from predict_nba.utils.exception import CustomException
@@ -50,8 +50,12 @@ def generate_new_predictions():
             return []
 
         predictor = MakePrediction()
-        existing = history.load_current_predictions()
-        existing_ids = {r.get("gameId") for r in existing if "gameId" in r}
+        try:
+            existing = history.load_current_predictions()
+            existing_ids = {r.get("gameId") for r in existing if "gameId" in r}
+        except:
+            existing = []
+            existing_ids = []
 
         new_rows = []
 
