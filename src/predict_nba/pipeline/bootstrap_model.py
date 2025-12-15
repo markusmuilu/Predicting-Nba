@@ -18,7 +18,7 @@ from predict_nba.utils.logger import logger
 from predict_nba.utils.s3_client import S3Client
 
 
-MODEL_KEY = "models/prediction_model.skops"
+MODEL_KEY = "models/model.npz"
 TEAMS_KEY = "teams/teams.json"
 TEAMS_API_URL = "https://api.pbpstats.com/get-teams/nba"
 
