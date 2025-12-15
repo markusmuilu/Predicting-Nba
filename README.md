@@ -1,7 +1,7 @@
 # 📊 NBA Game Prediction System
 
 > **TL;DR:**  
-A fully automated, containerized NBA win-probability prediction system built with FastAPI, scikit-learn, Docker, and AWS S3.  
+A fully automated, containerized NBA win-probability prediction system built with FastAPI, scikit-learn, Docker, and AWS S3, using my own built neural network using only numpy.  
 It collects multi-season NBA data, trains an ML model stored on S3, runs daily predictions inside a Docker automation container, and serves results through a FastAPI API — all without a traditional database.  
 Originally planned for Supabase, but switched entirely to S3 due to better compatibility with Power BI.  
 Everything is stateless and S3-driven: training data, cleaned datasets, models, current predictions, and history all live in S3.
@@ -14,16 +14,16 @@ This project fully automates:
 
 - 🏀 Fetching NBA game logs from PBPStats API
 - 🧹 Cleaning + transforming multi-season data
-- 🤖 Training a ML model using scikit-learn (stored in S3)
+- 🤖 Training a ML model using own built neural network (stored in S3)
 - 🔄 Running daily prediction automation (scheduled inside Docker)
 - 🌐 Serving predictions over a FastAPI REST API
 - ☁️ Managing training data, models, and predictions in S3 only
-- No Supabase, no external DB — fully S3-based and stateless.
+- No Supabase, no external DB, fully S3-based and stateless.
 
 # 🚀 Features
 Data Pipeline
 
-- Multi-season training data collection (2021–22 → 2024–25)
+- Multi-season training data collection (2015-16 → 2024–25)
 - Automatic team metadata loading from teams/teams.json in S3
 - Per-team game logs fetched via PBPStats
 - Cleaned + feature engineered dataset uploaded back to S3
@@ -67,7 +67,6 @@ src/predict_nba/
 │   │   automation_runner.py       # Main scheduler: runs daily jobs at 12:00 Helsinki
 │   │   daily_generate.py          # Generates today's predictions from ESPN schedule
 │   │   daily_update.py            # Resolves finished games & updates history
-│   │   espn_utils.py              # ESPN helpers (dates, IDs, mapping, etc.)
 │   │   history_manager.py         # Read/write current/history JSON in S3
 │   │   predictor_runner.py        # Legacy/compatibility runner wrapper
 │   │   __init__.py
@@ -91,6 +90,7 @@ src/predict_nba/
 │   │   __init__.py
 │
 ├── utils/                         # Shared utilities
+│   │   espn_utils.py              # ESPN helpers (dates, IDs, mapping, etc.)
 │   │   exception.py               # CustomException with improved trace formatting
 │   │   logger.py                  # Project-wide structured logger
 │   │   s3_client.py               # Generic JSON & bytes S3 helper (upload/download)
@@ -120,7 +120,6 @@ AWS_ACCESS_KEY_ID=your_key
 AWS_SECRET_ACCESS_KEY=your_secret
 AWS_S3_BUCKET_NAME=nbatraindata
 AWS_REGION=eu-north-1
-TZ=Europe/Helsinki
 ```
 S3 keys used by the system
 
@@ -371,6 +370,7 @@ Perfect for:
 
 
 # ⭐ If you like this project, consider giving it a GitHub star!
+
 
 
 
