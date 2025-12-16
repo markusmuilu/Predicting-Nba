@@ -70,5 +70,5 @@ class HistoryManager:
 
         to_add = [e for e in new_entries if e.get("gameId") not in existing_ids]
         history.extend(to_add)
-
-        self.s3.upload(self.HISTORY_KEY, history, "application/json")
+        data = json.dumps(history, indent=2).encode("utf-8")
+        self.s3.upload(self.HISTORY_KEY, data, "application/json")
