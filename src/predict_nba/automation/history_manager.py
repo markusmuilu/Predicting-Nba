@@ -44,7 +44,7 @@ class HistoryManager:
         """Return the list of current predictions from S3 (or [])."""
         if self.s3 is None:
             return []
-        return json.loads(self.s3.download(self.CURRENT_KEY).decode("uft-8").strip())
+        return json.loads(self.s3.download(self.CURRENT_KEY).decode("utf-8").strip())
 
     def save_current_predictions(self, rows):
         """Overwrite current_predictions JSON in S3."""
