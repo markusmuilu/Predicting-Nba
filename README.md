@@ -16,7 +16,7 @@ This project fully automates:
 - 🧹 Cleaning + transforming multi-season data
 - 🤖 Training a ML model using own built neural network (stored in S3)
 - 🔄 Running daily prediction automation (scheduled inside Docker)
-- 🌐 Serving predictions over a FastAPI REST API
+- 🌐 Serving new predictions over a FastAPI REST API
 - ☁️ Managing training data, models, and predictions in S3 only
 - No Supabase, no external DB, fully S3-based and stateless.
 
@@ -370,6 +370,7 @@ Perfect for:
 
 
 # ⭐ If you like this project, consider giving it a GitHub star!
+
 
 
 
