@@ -1,7 +1,7 @@
 # 📊 NBA Game Prediction System
 
 > **TL;DR:**  
-A fully automated, containerized NBA win-probability prediction system built with FastAPI, scikit-learn, Docker, and AWS S3, using my own built neural network using only numpy.  
+A fully automated, containerized NBA win-probability prediction system built with FastAPI, scikit-learn, Docker, and AWS S3, using my own built neural network utilizing only numpy.  
 It collects multi-season NBA data, trains an ML model stored on S3, runs daily predictions inside a Docker automation container, and serves results through a FastAPI API — all without a traditional database.  
 Originally planned for Supabase, but switched entirely to S3 due to better compatibility with Power BI.  
 Everything is stateless and S3-driven: training data, cleaned datasets, models, current predictions, and history all live in S3.
@@ -370,6 +370,7 @@ Perfect for:
 
 
 # ⭐ If you like this project, consider giving it a GitHub star!
+
 
 
 
