@@ -27,7 +27,7 @@ Data Pipeline
 - Automatic team metadata loading from teams/teams.json in S3
 - Per-team game logs fetched via PBPStats
 - Cleaned + feature engineered dataset uploaded back to S3
-- Model training with scikit-learn MLP and model stored in S3
+- Model training with scikit-learn MLP(currently using custom nn) and model stored in S3
 
 Automated Daily System
 
@@ -370,6 +370,7 @@ Perfect for:
 
 
 # ⭐ If you like this project, consider giving it a GitHub star!
+
 
 
 
