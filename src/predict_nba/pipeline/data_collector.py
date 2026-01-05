@@ -186,7 +186,7 @@ class DataCollector:
                 self.s3.upload(key, data)
                 logger.info(f"Uploaded {team_name}.csv to S3 as {key}")
 
-            time.sleep(2)
+            time.sleep(10)
             return df
 
         except Exception as e:
