@@ -73,7 +73,7 @@ class DataCleaner:
                     resp = requests.get(
                         f"{self.BASE_URL}/get-games/nba",
                         params={"Season": season, "SeasonType": "Regular Season"},
-                        timeout=10,
+                        timeout=30,
                     )
                     resp.raise_for_status()
                     data = resp.json()
@@ -93,7 +93,7 @@ class DataCleaner:
                     logger.warning(
                         f"Home/away fetch failed ({season}) attempt {attempt+1}/{retries}: {e}"
                     )
-                    time.sleep(2)  # wait before retry
+                    time.sleep(attempt*10 + 10)  # wait before retry
 
                     if attempt == retries - 1:
                         raise CustomException(
