@@ -135,6 +135,8 @@ def update_predictions():
                     "winner": home_win,  # True if home team actually won
                     "prediction_correct": correct,
                     "gameId": game_id,
+                    "home_odds": row.get("home_odds"),
+                    "away_odds": row.get("away_odds")
                 }
 
                 updated_rows.append(entry)
