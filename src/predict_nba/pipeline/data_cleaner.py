@@ -70,8 +70,16 @@ class DataCleaner:
 
             for attempt in range(retries):
                 try:
+                    headers = {
+                        "User-Agent": (
+                            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                            "AppleWebKit/537.36 (KHTML, like Gecko) "
+                            "Chrome/121.0 Safari/537.36"
+                        )
+                    }
                     resp = requests.get(
-                        f"{self.BASE_URL}/get-games/nba",
+                        f"{self.BASE_URL}/get-games/nba", 
+                        headers=headers,
                         params={"Season": season, "SeasonType": "Regular Season"},
                         timeout=30,
                     )
@@ -93,7 +101,7 @@ class DataCleaner:
                     logger.warning(
                         f"Home/away fetch failed ({season}) attempt {attempt+1}/{retries}: {e}"
                     )
-                    time.sleep(attempt*10 + 10)  # wait before retry
+                    time.sleep(attempt*60 + 60)  # wait before retry
 
                     if attempt == retries - 1:
                         raise CustomException(
