@@ -156,18 +156,35 @@ class DataCollector:
             team_name = team["name"]
 
             logger.info(f"Fetching {season} logs for {team_name} ({team_id})")
+            attempts = 5 
 
-            resp = requests.get(
-                f"{self.BASE_URL}/get-game-logs/nba",
-                params={
-                    "Season": season,
-                    "SeasonType": "Regular Season",
-                    "EntityType": "Team",
-                    "EntityId": team_id,
-                },
-                timeout=20,
-            )
-            resp.raise_for_status()
+            for attempt in range(attempts):
+                try:
+                    headers = {
+                        "User-Agent": (
+                            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                            "AppleWebKit/537.36 (KHTML, like Gecko) "
+                            "Chrome/121.0 Safari/537.36"
+                        )
+                    }
+
+                    resp = requests.get(
+                        f"{self.BASE_URL}/get-game-logs/nba",
+                        headers=headers,
+                        params={
+                            "Season": season,
+                            "SeasonType": "Regular Season",
+                            "EntityType": "Team",
+                            "EntityId": team_id,
+                        },
+                        timeout=20,
+                    )
+                    resp.raise_for_status()
+
+                except Exception as e:
+                    logger.warning(f"Attempt {attempt + 1} failed: {e}")
+                    time.sleep(attempt * 60 + 60)
+                    continue
 
             logs = resp.json().get("multi_row_table_data", [])
             if not logs:

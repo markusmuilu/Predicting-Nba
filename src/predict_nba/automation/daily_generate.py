@@ -18,6 +18,43 @@ from predict_nba.automation.history_manager import HistoryManager
 from predict_nba.pipeline.make_prediction import MakePrediction
 from predict_nba.utils.exception import CustomException
 from predict_nba.utils.logger import logger
+from predict_nba.utils.oddsfetcher import OddsFetcher
+
+
+
+TEAMS = {
+    "ATL": "Atlanta Hawks",
+    "BOS": "Boston Celtics",
+    "BKN": "Brooklyn Nets",
+    "CHA": "Charlotte Hornets",
+    "CHI": "Chicago Bulls",
+    "CLE": "Cleveland Cavaliers",
+    "DAL": "Dallas Mavericks",
+    "DEN": "Denver Nuggets",
+    "DET": "Detroit Pistons",
+    "GSW": "Golden State Warriors",
+    "HOU": "Houston Rockets",
+    "IND": "Indiana Pacers",
+    "LAC": "Los Angeles Clippers",
+    "LAL": "Los Angeles Lakers",
+    "MEM": "Memphis Grizzlies",
+    "MIA": "Miami Heat",
+    "MIL": "Milwaukee Bucks",
+    "MIN": "Minnesota Timberwolves",
+    "NOP": "New Orleans Pelicans",
+    "NYK": "New York Knicks",
+    "OKC": "Oklahoma City Thunder",
+    "ORL": "Orlando Magic",
+    "PHI": "Philadelphia 76ers",
+    "PHX": "Phoenix Suns",
+    "POR": "Portland Trail Blazers",
+    "SAC": "Sacramento Kings",
+    "SAS": "San Antonio Spurs",
+    "TOR": "Toronto Raptors",
+    "UTA": "Utah Jazz",
+    "WAS": "Washington Wizards",
+}
+
 
 
 def generate_new_predictions():
@@ -114,8 +151,23 @@ def generate_new_predictions():
 
             new_rows.append(entry)
             time.sleep(0.3)
+        if new_rows != []:
+            odds = OddsFetcher.fetch_odds()
+            for row in new_rows:
+                home_team = TEAMS.get(row["team"])
+                away_team = TEAMS.get(row["opponent"])
+                match = odds[
+                    (odds["home_team"] == home_team) &
+                    (odds["away_team"] == away_team)
+                ]
+                if not match.empty:
+                    row["home_odds"] = match.iloc[0]["home_odds"]
+                    row["away_odds"] = match.iloc[0]["away_odds"]
+                else:
+                    row["home_odds"] = None
+                    row["away_odds"] = None
 
-        if not new_rows:
+        if not new_rows and existing == []:
             logger.info("No NBA games today, creating placeholder prediction.")
 
             today = datetime.utcnow().strftime("%Y-%m-%d")
@@ -143,3 +195,6 @@ def generate_new_predictions():
     except Exception as e:
         CustomException(f"generate_new_predictions failed: {e}", sys)
         return None
+
+if __name__ == "__main__":
+    generate_new_predictions()
