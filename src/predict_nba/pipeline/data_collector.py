@@ -160,6 +160,7 @@ class DataCollector:
 
             for attempt in range(attempts):
                 try:
+                    logger.info(f"Attempt {attempt + 1} to fetch data...")
                     headers = {
                         "User-Agent": (
                             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -180,6 +181,7 @@ class DataCollector:
                         timeout=20,
                     )
                     resp.raise_for_status()
+                    break
 
                 except Exception as e:
                     logger.warning(f"Attempt {attempt + 1} failed: {e}")
@@ -203,7 +205,6 @@ class DataCollector:
                 self.s3.upload(key, data)
                 logger.info(f"Uploaded {team_name}.csv to S3 as {key}")
 
-            time.sleep(5)
             return df
 
         except Exception as e:

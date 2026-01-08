@@ -27,8 +27,9 @@ class MakePrediction:
             logger.info(f"Starting prediction for {team1} vs {team2}")
 
             # Collect latest data for each team
-            DataCollector().get_current_season(team1)
-            DataCollector().get_current_season(team2)
+            collector = DataCollector()
+            collector.get_current_season(team1)
+            collector.get_current_season(team2)
 
             # Clean and prepare prediction dataset
             DataCleaner().clean_prediction_data(team1, team2)

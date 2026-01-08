@@ -267,6 +267,7 @@ class DataCleaner:
         Produce a single-row matchup dataset for prediction inference.
         Reads latest per-team CSVs from S3 and computes aligned features.
         """
+        logger.info(f"Cleaning prediction data for {team1} vs {team2}")
         key1 = f"predict/{team1}.csv"
         key2 = f"predict/{team2}.csv"
 
