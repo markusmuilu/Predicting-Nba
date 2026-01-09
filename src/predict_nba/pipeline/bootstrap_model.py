@@ -18,7 +18,7 @@ from predict_nba.utils.logger import logger
 from predict_nba.utils.s3_client import S3Client
 
 
-MODEL_KEY = "models/model.npz"
+MODEL_KEY = "models/prediction_model.skops"
 TEAMS_KEY = "teams/teams.json"
 TEAMS_API_URL = "https://api.pbpstats.com/get-teams/nba"
 
@@ -98,7 +98,7 @@ def bootstrap_model():
 
         # Collect and prepare data
         collector = DataCollector()
-        seasons = ["2015-16", "2016-17", "2017-18", "2018-19", "2019-20", "2020-21","2021-22", "2022-23", "2023-24", "2024-25"]
+        seasons = ["2020-21","2021-22", "2022-23", "2023-24", "2024-25"]
         collector.collect_training_data(seasons)
 
         cleaner = DataCleaner()

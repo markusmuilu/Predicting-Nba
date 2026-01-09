@@ -17,6 +17,7 @@ import pandas as pd
 import numpy as np
 import skops.io as sio
 from dotenv import load_dotenv
+from sklearn.linear_model import LogisticRegression
 from nn import NeuralNetwork, load_model, save_model 
 from sklearn.metrics import accuracy_score, roc_auc_score, classification_report
 from sklearn.model_selection import train_test_split
@@ -34,17 +35,17 @@ class ModelTrainer:
 
     def __init__(
         self,
-        model_type="neural_network",
-        epochs = 55,
-        lr=0.001,
-        batch_size=32,
-        layers=[128,64,32,1]
+        model_type="logistic_regression",
+        C=1.0,
+        max_iter=1000,
+        test_size=0.2,
+        random_state=42,
     ):
         self.model_type = model_type
-        self.epochs = epochs
-        self.lr = lr
-        self.batch_size = batch_size
-        self.layers = layers
+        self.C = C
+        self.max_iter = max_iter
+        self.test_size = test_size
+        self.random_state = random_state
 
         load_dotenv()
         try:
@@ -75,11 +76,12 @@ class ModelTrainer:
 
     def _initialize_model(self):
         """Create the ML model instance based on configuration."""
-        if self.model_type == "neural_network":
-            return NeuralNetwork(
-                self.layers,
-                self.lr,
-                self.batch_size
+        if self.model_type == "logistic_regression":
+            return LogisticRegression(
+                C=self.C,
+                max_iter=self.max_iter,
+                solver="lbfgs",
+                n_jobs=-1,
             )
 
         CustomException(f"Unsupported model type: {self.model_type}", sys)
@@ -114,7 +116,7 @@ class ModelTrainer:
 
             df = df.sort_values("Date")
 
-            cutoff = "2024-01-01"
+            cutoff = "2024-08-01"
             df_train = df[df["Date"] < cutoff]
             df_test  = df[df["Date"] >= cutoff]
 
@@ -122,73 +124,43 @@ class ModelTrainer:
             y_train = df_train["TeamWin"]
             X_test = df_test[available]      
             y_test = df_test["TeamWin"]    
+            X = df[available]
+            y = df["TeamWin"]
 
-
-            logger.info(f"Training samples: {X_train.shape[0]} | features: {X_train.shape[1]}")
-
+            logger.info(f"Training samples: {X.shape[0]} | features: {X.shape[1]}")
 
             # Standardization
             scaler = StandardScaler().fit(X_train)
             X_train_scaled = scaler.transform(X_train)
             X_test_scaled = scaler.transform(X_test)
 
-            logger.info("Training Custom Neural Network...")
-
-            # Prepare numpy arrays
-            X_train_np = X_train_scaled.astype(float)
-            X_test_np = X_test_scaled.astype(float)
-
-            y_train_np = np.asarray(y_train, dtype=float).reshape(-1, 1)
-            y_test_np = np.asarray(y_test, dtype=int)
-
-            # Build model
-            input_dim = X_train_np.shape[1]
-            layers = [input_dim] + self.layers
-            self.layers = layers
-
             model = self._initialize_model()
             if model is None:
                 return None, None
 
-            logger.info("Training Custom Neural Network...")
+            logger.info("Training model...")
+            model.fit(X_train_scaled, y_train)
 
-            # Fit
-            model.fit(X_train_np, y_train_np, epochs=self.epochs)
-
-            # Predict
-            y_pred_dicts = [model.predict(X_test_np[i]) for i in range(len(X_test_np))]
-            y_pred = np.array([p["result"] for p in y_pred_dicts])
-
-            # Evaluate
-            acc = accuracy_score(y_test_np, y_pred)
-            auc = roc_auc_score(y_test_np, y_pred)
+            # Evaluation
+            y_pred = model.predict(X_test_scaled)
+            acc = accuracy_score(y_test, y_pred)
+            auc = roc_auc_score(y_test, y_pred)
 
             logger.info(f"Accuracy: {acc:.4f}")
             logger.info(f"ROC-AUC: {auc:.4f}")
-            logger.info("Classification report:\n" + classification_report(y_test_np, y_pred))
+            logger.info("Classification report:\n" + classification_report(y_test, y_pred))
 
-
-            # Save model model to S3
+            # Save model bundle to S3
             if save:
-                scal = {"scaler": scaler}
-                scal_tmp_path = "scaler.skops"
-                model_tmp_path = "model.npz"
-                sio.dump(scal, scal_tmp_path)
-                save_model(model, model_tmp_path)
-                with open(scal_tmp_path, "rb") as f:
+                bundle = {"model": model, "scaler": scaler}
+                tmp_path = "prediction_model.skops"
+                sio.dump(bundle, tmp_path)
+
+                with open(tmp_path, "rb") as f:
                     raw_bytes = f.read()
 
                 self.s3.upload(
-                    "models/scaler.skops",
-                    raw_bytes,
-                    content_type="application/octet-stream",
-                )
-
-                with open(model_tmp_path, "rb") as f:
-                    raw_bytes = f.read()
-
-                self.s3.upload(
-                    "models/model.npz",
+                    "models/prediction_model.skops",
                     raw_bytes,
                     content_type="application/octet-stream",
                 )

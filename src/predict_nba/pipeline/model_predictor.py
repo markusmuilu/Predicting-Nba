@@ -2,7 +2,7 @@
 Model prediction module for the NBA prediction project.
 
 Responsibilities:
-- Load the trained model + scaler from S3 (.npz & .skops)
+- Load the trained model + scaler bundle
 - Load the cleaned matchup CSV from S3
 - Prepare features for inference
 - Predict the winner and confidence percentage
@@ -62,7 +62,7 @@ class ModelPredictor:
         Predicts the winner between two teams using the trained model.
 
         Steps:
-        - Download model and scaler
+        - Download Bundle
         - Extract model + scaler
         - Download cleaned matchup data
         - Select relevant features
@@ -73,34 +73,23 @@ class ModelPredictor:
             return None
 
         try:
-            model_key = "models/model.npz"
-            scaler_key = "models/scaler.skops"
+            model_key = "models/prediction_model.skops"
             data_key = f"predict/clean/{team1}vs{team2}.csv"
 
-            # Load model 
+            # Load model bundle
             logger.info(f"Downloading model: {model_key}")
             model_bytes = self.s3.download(model_key)
             if model_bytes is None:
                 return None
 
-            with open("tmp_model.npz", "wb") as f:
-                f.write(model_bytes)
+            untrusted = sio.get_untrusted_types(data=model_bytes)
+            bundle = sio.loads(model_bytes, trusted=untrusted)
 
-            model = load_model("tmp_model.npz")
-
-            # Load scaler
-            logger.info(f"Downloading scaler: {scaler_key}")
-            scaler_bytes = self.s3.download(scaler_key)
-            if scaler_bytes is None:
-                return None
-
-            untrusted = sio.get_untrusted_types(data=scaler_bytes)
-            bundle = sio.loads(scaler_bytes, trusted=untrusted)
-            scaler = bundle["scaler"]
-
+            model = bundle.get("model")
+            scaler = bundle.get("scaler")
 
             if model is None or scaler is None:
-                CustomException("Model or scaler missing.", sys)
+                CustomException("Model bundle missing 'model' or 'scaler'.", sys)
                 return None
 
             # Load matchup data
@@ -124,21 +113,15 @@ class ModelPredictor:
             X_scaled = scaler.transform(X)
 
             # Predict outcome
-            row = X_scaled[0]                
-            out = model.predict(row)         
+            pred = model.predict(X_scaled)[0]
+            prob = model.predict_proba(X_scaled)[0][1]
 
-            result = out["result"]
-            confidence = out["confidence"]
-
-            winner = team1 if result == 1 else team2
-            confidence = round(confidence * 100, 2)
+            winner = team1 if pred == 1 else team2
+            confidence = round(prob * 100 if pred == 1 else (1 - prob) * 100, 2)
 
             logger.info(f"Predicted: {winner} ({confidence}%)")
 
-            return {
-                "winner": winner,
-                "confidence": confidence
-            }
+            return {"winner": winner, "confidence": confidence}
 
         except Exception as e:
             CustomException(f"predict_matchup failed: {e}", sys)
