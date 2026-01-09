@@ -87,18 +87,35 @@ class DataCollector:
 
                     try:
                         logger.info(f"Fetching logs for {team_name} ({team_id})")
+                        attempts = 5
+                        for attempt in range(attempts):
+                            try:
+                                logger.info(f"Attempt {attempt + 1} to fetch data...")
+                                headers = {
+                                    "User-Agent": (
+                                        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                                        "Chrome/121.0 Safari/537.36"
+                                    )
+                                }
 
-                        resp = requests.get(
-                            f"{self.BASE_URL}/get-game-logs/nba",
-                            params={
-                                "Season": season,
-                                "SeasonType": "Regular Season",
-                                "EntityType": "Team",
-                                "EntityId": team_id,
-                            },
-                            timeout=20,
-                        )
-                        resp.raise_for_status()
+                                resp = requests.get(
+                                    f"{self.BASE_URL}/get-game-logs/nba",
+                                    headers=headers,
+                                    params={
+                                        "Season": season,
+                                        "SeasonType": "Regular Season",
+                                        "EntityType": "Team",
+                                        "EntityId": team_id,
+                                    },
+                                    timeout=20,
+                                )
+                                resp.raise_for_status()
+                                break
+                            except Exception as e:
+                                logger.warning(f"Attempt {attempt + 1} failed: {e}")
+                                time.sleep(attempt * 20 + 20)
+                                continue
 
                         logs = resp.json().get("multi_row_table_data", [])
                         if not logs:
@@ -116,7 +133,6 @@ class DataCollector:
                         df["season"] = season
 
                         all_data = pd.concat([all_data, df], ignore_index=True)
-                        time.sleep(5)
 
                     except Exception as e:
                         CustomException(f"Failed to fetch logs for {team_name}: {e}", sys)
@@ -185,7 +201,7 @@ class DataCollector:
 
                 except Exception as e:
                     logger.warning(f"Attempt {attempt + 1} failed: {e}")
-                    time.sleep(attempt * 60 + 60)
+                    time.sleep(attempt * 20 + 20)
                     continue
 
             logs = resp.json().get("multi_row_table_data", [])
