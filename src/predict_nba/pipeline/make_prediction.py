@@ -63,8 +63,8 @@ class MakePrediction:
             # Step 1: Collect raw training data
             collector.collect_training_data(seasons)
 
-            # Step 2: Clean training dataset
-            cleaner.clean_training_data(seasons)
+            # Step 2: Clean training dataset (uses default key training/training_data.csv)
+            cleaner.clean_training_data()
 
             # Step 3: Train and upload the ML model
             trainer.train_model()

@@ -8,7 +8,6 @@ Files:
 
 import sys
 import json
-import io
 
 import numpy as np
 
@@ -44,7 +43,10 @@ class HistoryManager:
         """Return the list of current predictions from S3 (or [])."""
         if self.s3 is None:
             return []
-        return json.loads(self.s3.download(self.CURRENT_KEY).decode("utf-8").strip())
+        raw = self.s3.download(self.CURRENT_KEY)
+        if raw is None:
+            return []
+        return json.loads(raw.decode("utf-8").strip())
 
     def save_current_predictions(self, rows):
         """Overwrite current_predictions JSON in S3."""
@@ -65,7 +67,8 @@ class HistoryManager:
             return
 
         new_entries = [{k: self._clean(v) for k, v in row.items()} for row in new_entries]
-        history = json.loads(self.s3.download(self.HISTORY_KEY).decode("utf-8").strip())
+        raw = self.s3.download(self.HISTORY_KEY)
+        history = json.loads(raw.decode("utf-8").strip()) if raw else []
         existing_ids = {h.get("gameId") for h in history if "gameId" in h}
 
         to_add = [e for e in new_entries if e.get("gameId") not in existing_ids]

@@ -9,16 +9,12 @@ Responsibilities:
 """
 
 import io
-import os
 import sys
 
-import boto3
 import pandas as pd
-import numpy as np
 import skops.io as sio
 from dotenv import load_dotenv
 
-from nn import NeuralNetwork, load_model
 from predict_nba.utils.exception import CustomException
 from predict_nba.utils.logger import logger
 from predict_nba.utils.s3_client import S3Client

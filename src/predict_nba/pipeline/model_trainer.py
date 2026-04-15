@@ -9,23 +9,17 @@ Responsibilities:
 """
 
 import io
-import os
 import sys
 
-import boto3
 import pandas as pd
-import numpy as np
 import skops.io as sio
 from dotenv import load_dotenv
 from sklearn.linear_model import LogisticRegression
-from nn import NeuralNetwork, load_model, save_model 
 from sklearn.metrics import accuracy_score, roc_auc_score, classification_report
-from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
 from predict_nba.utils.exception import CustomException
 from predict_nba.utils.logger import logger
-from predict_nba.pipeline.data_cleaner import DataCleaner
 from predict_nba.utils.s3_client import S3Client
 
 
@@ -125,7 +119,6 @@ class ModelTrainer:
             X_test = df_test[available]      
             y_test = df_test["TeamWin"]    
             X = df[available]
-            y = df["TeamWin"]
 
             logger.info(f"Training samples: {X.shape[0]} | features: {X.shape[1]}")
 

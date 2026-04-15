@@ -66,13 +66,11 @@ def model_exists():
     """
     Checks whether the trained model file exists in S3.
     """
-    s3 = S3Client().s3
-    bucket = S3Client().bucket
-
+    client = S3Client()
     try:
-        s3.head_object(Bucket=bucket, Key=MODEL_KEY)
+        client.s3.head_object(Bucket=client.bucket, Key=MODEL_KEY)
         return True
-    except s3.exceptions.ClientError as e:  # type: ignore
+    except ClientError as e:
         code = e.response.get("Error", {}).get("Code")
         if code in ("404", "NoSuchKey"):
             return False

@@ -9,19 +9,19 @@ Responsibilities:
 """
 
 import io
-import os
 import sys
 import time
 import json
+from datetime import datetime, timezone
 
-import boto3
 import pandas as pd
 import requests
-from dotenv import load_dotenv
 
 from predict_nba.utils.exception import CustomException
 from predict_nba.utils.logger import logger
 from predict_nba.utils.s3_client import S3Client
+
+CACHE_TTL_SECONDS = 6 * 3600  # 6 hours
 
 class ConfigCollection:
     """Loads team metadata from S3 (teams.json)."""
@@ -170,9 +170,23 @@ class DataCollector:
 
             team_id = team["id"]
             team_name = team["name"]
+            key = f"predict/{team_name}.csv"
+
+            # 6-hour cache: skip PBPStats if the file was uploaded recently
+            if upload:
+                try:
+                    head = self.s3.s3.head_object(Bucket=self.s3.bucket, Key=key)
+                    age = (datetime.now(timezone.utc) - head["LastModified"]).total_seconds()
+                    if age < CACHE_TTL_SECONDS:
+                        logger.info(
+                            f"Cache hit for {team_name} ({int(age / 3600)}h old) — skipping PBPStats fetch"
+                        )
+                        return None
+                except Exception:
+                    pass  # key doesn't exist yet; proceed with fetch
 
             logger.info(f"Fetching {season} logs for {team_name} ({team_id})")
-            attempts = 5 
+            attempts = 5
 
             for attempt in range(attempts):
                 try:
@@ -214,11 +228,9 @@ class DataCollector:
             df["season"] = season
 
             if upload:
-                key = f"predict/{team_name}.csv"
                 buffer = io.StringIO()
                 df.to_csv(buffer, index=False)
-                data = buffer.getvalue().encode("utf-8")
-                self.s3.upload(key, data)
+                self.s3.upload(key, buffer.getvalue().encode("utf-8"))
                 logger.info(f"Uploaded {team_name}.csv to S3 as {key}")
 
             return df

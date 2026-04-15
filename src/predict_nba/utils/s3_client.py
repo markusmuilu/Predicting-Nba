@@ -22,11 +22,11 @@ class S3Client:
 
     def __init__(self):
         load_dotenv()
-        bucket = os.getenv("AWS_S3_BUCKET_NAME")
-        region = os.getenv("AWS_REGION")
+        bucket = os.getenv("STORAGE_BUCKET")
+        region = os.getenv("STORAGE_REGION")
 
         if not bucket:
-            raise CustomException("AWS_S3_BUCKET_NAME must be set in environment.", sys)
+            raise CustomException("STORAGE_BUCKET must be set in environment.", sys)
 
         try:
             self.bucket = bucket
@@ -34,8 +34,8 @@ class S3Client:
                 "s3",
                 endpoint_url=os.getenv("R2_ENDPOINT"),
                 region_name=region,
-                aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-                aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+                aws_access_key_id=os.getenv("STORAGE_ACCESS_KEY"),
+                aws_secret_access_key=os.getenv("STORAGE_SECRET_KEY"),
             )
         except Exception as e:
             raise CustomException(f"S3 initialization failed: {e}", sys)

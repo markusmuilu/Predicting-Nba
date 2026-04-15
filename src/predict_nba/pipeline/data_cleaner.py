@@ -10,15 +10,11 @@ Responsibilities:
 """
 
 import io
-import os
 import sys
-import json
-import time 
+import time
 
-import boto3
 import pandas as pd
 import requests
-from dotenv import load_dotenv
 
 from predict_nba.utils.exception import CustomException
 from predict_nba.utils.logger import logger
@@ -201,19 +197,22 @@ class DataCleaner:
 
         # Basic rating metrics
         data["OffRtg"] = (data["Points"] / data["OffPoss"]) * 100
-        data["DefRtg"] = (data["Points"] / data["DefPoss"]) * 100
+        data["DefRtg"] = (data["OppPoints"] / data["DefPoss"]) * 100
         data["NetRtg"] = data["OffRtg"] - data["DefRtg"]
         data["EfgDiff"] = data.groupby("team")["EfgPct"].diff().fillna(0)
         data["TsDiff"] = data.groupby("team")["TsPct"].diff().fillna(0)
 
-        # Rolling averages
+        # Rolling averages — build all columns at once then concat to avoid fragmentation
         all_features = self.base_features + self.advanced_features
+        avg_dict = {}
         for col in all_features:
             if col in data.columns:
-                data[f"{col}_avg"] = (
+                avg_dict[f"{col}_avg"] = (
                     data.groupby(["team", "season"])[col]
                     .transform(lambda x: x.shift(1).rolling(self.window_size, min_periods=1).mean())
                 )
+        data = pd.concat([data, pd.DataFrame(avg_dict, index=data.index)], axis=1)
+
         # Only keep rows where all averages are available
         avg_cols = [f"{c}_avg" for c in all_features if f"{c}_avg" in data.columns]
         data = data.dropna(subset=avg_cols)
@@ -317,12 +316,17 @@ class DataCleaner:
             df["TsDiff"] = df.groupby("team")["TsPct"].diff().fillna(0)
 
             all_cols = self.base_features + self.advanced_features
+            avg_dict = {}
             for col in all_cols:
                 if col in df.columns:
-                    df[f"{col}_avg"] = (
+                    avg_dict[f"{col}_avg"] = (
                         df.groupby("team")[col]
                         .transform(lambda x: x.shift(1).rolling(self.window_size, min_periods=1).mean())
                     )
+            if avg_dict:
+                new_avg_df = pd.DataFrame(avg_dict, index=df.index)
+                for new_col in new_avg_df.columns:
+                    df[new_col] = new_avg_df[new_col]
 
         # Season wins, losses, pct, back to back
         t1 = t1.sort_values("Date")

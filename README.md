@@ -1,10 +1,10 @@
 # NBA Win Probability Prediction System
 
-A fully automated, containerized NBA game win-probability prediction system built with FastAPI, Docker, and AWS S3.
+A fully automated, containerized NBA game win-probability prediction system built with FastAPI, Docker, and Cloudflare R2.
 
-The system implements a complete production-style machine learning pipeline: multi-season data ingestion, feature engineering, model training, scheduled daily inference, and API-based access, all without a traditional database.
+The system implements a complete production-style machine learning pipeline: multi-season data ingestion, feature engineering, model training, scheduled daily inference, and API-based access — all without a traditional database.
 
-All system state (training data, cleaned datasets, trained models, current predictions, and historical results) is persisted exclusively in Amazon S3.
+All system state (training data, cleaned datasets, trained models, current predictions, and historical results) is persisted exclusively in object storage.
 
 ---
 
@@ -37,20 +37,19 @@ This project is **not** a betting system.
 
 ### Data Pipeline
 
-- Multi-season NBA game data ingestion (currently 2020–21 through 2024–25)
-- Per-team game log collection from PBPStats
-- Centralized team metadata stored in S3
-- Robust cleaning and feature engineering
+- Multi-season NBA game data ingestion (2020–21 through 2024–25)
+- Per-team game log collection from PBPStats with automatic retries
+- 6-hour cache on per-team data to avoid redundant PBPStats requests
+- Centralized team metadata stored in object storage
+- Corrected defensive rating formula (`OppPoints / DefPoss * 100`) for accurate feature engineering
 - Cleaned datasets persisted for reproducibility
 
 ### Machine Learning
 
-- Model: Logistic Regression (current production model)
-- Rationale:
-  - Stronger real-world stability than the experimental neural network
-  - Better calibration and interpretability
+- Model: Logistic Regression (scikit-learn)
+- Rationale: stronger real-world stability and better calibration than the experimental custom neural network
 - Consistent feature pipeline between training and inference
-- Trained model serialized and stored in S3
+- Trained model serialized as a skops bundle (model + scaler together) and stored in object storage
 
 ### Odds Integration
 
@@ -62,20 +61,29 @@ This project is **not** a betting system.
 ### Automation
 
 - Fully automated daily prediction lifecycle:
-  - Resolve finished games
-  - Archive resolved predictions
-  - Generate predictions for today’s matchups
-- Time-zone aware scheduling (Helsinki time)
-- Safe startup coordination via S3 readiness checks
+  - Resolve finished games against ESPN results
+  - Archive resolved predictions to history
+  - Generate predictions for today's matchups
+- Time-zone aware scheduling (Helsinki time, 12:00 daily)
+- Safe startup coordination via storage readiness checks
 
 ---
 
 ## Infrastructure
 
-- Dockerized services with strict separation of responsibilities
-- No external database
-- No local persistence
-- Entire system reproducible from S3 + containers
+### Hosting — Fly.io
+
+The application runs on [Fly.io](https://fly.io) (`arn` region, 1 GB / 1 CPU).
+
+Previously hosted on AWS EC2; migrated to Fly.io to reduce costs and simplify deployment. Fly handles container orchestration, HTTPS termination, and machine lifecycle automatically.
+
+### Storage — Cloudflare R2
+
+Object storage uses [Cloudflare R2](https://developers.cloudflare.com/r2/).
+
+Previously used AWS S3; migrated to Cloudflare R2 after the AWS free trial ended. R2 is S3-compatible (boto3 works unchanged via `endpoint_url`) and has no egress fees, which significantly reduces costs for a project that reads storage on every prediction request.
+
+The S3Client supports both AWS S3 and R2 via the `R2_ENDPOINT` environment variable — set it for R2, leave blank for AWS.
 
 ---
 
@@ -83,20 +91,21 @@ This project is **not** a betting system.
 
 ### Bootstrap Container
 
-- Ensures team metadata exists in S3
-- Trains the model if missing
+- Ensures team metadata exists in storage
+- Trains the model if the bundle is missing
+- Exits after completing setup
 
 ### Automation Container
 
 - Runs daily prediction workflow
-- Updates current and historical predictions
+- Updates current and historical prediction JSON files
 
 ### API Container
 
 - Serves prediction endpoints
-- Loads the trained model directly from S3
+- Loads the trained model directly from storage at request time
 
-All containers block on S3 readiness instead of relying on fragile startup ordering.
+All containers block on storage readiness instead of relying on fragile startup ordering.
 
 ---
 
@@ -106,72 +115,73 @@ All containers block on S3 readiness instead of relying on fragile startup order
 src/predict_nba/
 │
 ├── automation/
-│   ├── automation_runner.py
-│   ├── daily_generate.py
-│   ├── daily_update.py
-│   ├── history_manager.py
-│   └── predictor_runner.py
+│   ├── automation_runner.py   # Daily scheduler (12:00 Helsinki)
+│   ├── daily_generate.py      # ESPN schedule → predictions + odds
+│   ├── daily_update.py        # Resolve finished games via ESPN
+│   ├── history_manager.py     # Read/write current + history JSON
+│   └── predictor_runner.py    # DailyPredictor wrapper
 │
 ├── backend/
-│   ├── main.py
+│   ├── main.py                # FastAPI app + CORS
 │   └── routes/
-│       ├── predict.py
-│       └── update.py
+│       ├── predict.py         # GET /predict
+│       └── update.py          # POST /update
 │
 ├── pipeline/
-│   ├── bootstrap_model.py
-│   ├── data_collector.py
-│   ├── data_cleaner.py
-│   ├── make_prediction.py
-│   ├── model_predictor.py
-│   └── model_trainer.py
+│   ├── bootstrap_model.py     # One-shot setup: teams + model
+│   ├── data_collector.py      # PBPStats ingestion + 6h cache
+│   ├── data_cleaner.py        # Feature engineering, rolling avgs
+│   ├── make_prediction.py     # Orchestrates collect → clean → predict
+│   ├── model_predictor.py     # Loads bundle, runs inference
+│   └── model_trainer.py       # Trains LogisticRegression, saves bundle
 │
-├── utils/
-│   ├── s3_client.py
-│   ├── logger.py
-│   ├── exception.py
-│   └── wait_for_model.py
-│
-└── __init__.py
+└── utils/
+    ├── s3_client.py           # S3/R2 upload + download helper
+    ├── espn.py                # Abbreviation normalization, date conversion
+    ├── oddsfetcher.py         # The Odds API integration
+    ├── logger.py              # Rotating file + console logger
+    ├── exception.py           # CustomException (non-halting, logs trace)
+    └── wait_for_model.py      # Polls storage until model bundle is ready
 ```
 
 ---
 
-## S3 Storage Layout
+## Storage Layout
 
 ```
-teams/
-  teams.json
-
-training/
-  training_data.csv
-
-clean/
-  training_data_clean.csv
-
-models/
-  prediction_model.skops
-
-current/
-  current_predictions.json
-
-history/
-  prediction_history.json
+<bucket>/
+├── teams/
+│   └── teams.json                  # All 30 NBA team IDs and names
+├── training/
+│   └── training_data.csv           # Raw multi-season game logs
+├── clean/
+│   └── training_data_clean.csv     # Engineered feature dataset
+├── models/
+│   └── prediction_model.skops      # skops bundle: {model, scaler}
+├── current/
+│   └── current_predictions.json    # Unresolved predictions for today
+├── history/
+│   └── prediction_history.json     # Full prediction + outcome history
+└── predict/
+    ├── <TEAM>.csv                   # Latest season logs (6h cached)
+    └── clean/
+        └── <TEAM1>vs<TEAM2>.csv     # Cleaned matchup row for inference
 ```
 
-S3 acts as configuration store, feature store, model registry, prediction output store, and historical audit log.
+Storage acts as configuration store, feature store, model registry, prediction output, and historical audit log.
 
 ---
 
 ## Environment Configuration
 
-Example `.env.example`:
-
 ```
-AWS_S3_BUCKET_NAME=
-AWS_REGION=
-AWS_ACCESS_KEY_ID=
-AWS_SECRET_ACCESS_KEY=
+STORAGE_BUCKET=
+STORAGE_REGION=
+STORAGE_ACCESS_KEY=
+STORAGE_SECRET_KEY=
+# For Cloudflare R2: https://<account_id>.r2.cloudflarestorage.com
+# For AWS S3: leave blank
+R2_ENDPOINT=
 ODDS_API_KEY=
 ```
 
@@ -183,57 +193,58 @@ No credentials are committed to the repository.
 
 On first deployment:
 
-1. Check if a trained model exists in S3
+1. Check if a trained model bundle exists in storage
 2. If missing:
-   - Fetch and normalize team metadata
-   - Collect multi-season training data
+   - Fetch and normalize team metadata from PBPStats
+   - Collect multi-season training data (5 seasons)
    - Clean and engineer features
    - Train logistic regression model
-   - Upload trained model to S3
+   - Upload bundle (`{model, scaler}`) to storage
 3. Exit cleanly
 
-Subsequent deployments reuse existing artifacts.
+Subsequent deployments skip all steps and reuse existing artifacts.
 
 ---
 
 ## Daily Automation Flow
 
-Executed by the automation container:
+Executed by the automation container at 12:00 Helsinki time:
 
-1. Resolve finished games
-   - Compare active predictions against real results
-   - Move resolved games to history
+1. **Resolve finished games**
+   - Load unresolved predictions from storage
+   - Check real results from ESPN scoreboard
+   - Move resolved games (with correctness flag) to history
 
-2. Generate new predictions
-   - Fetch today’s matchups
-   - Fetch latest team statistics
-   - Fetch game odds (reference only)
-   - Run inference using trained model
+2. **Generate new predictions**
+   - Fetch today's schedule from ESPN
+   - Collect latest team statistics (with 6-hour cache to avoid redundant API calls)
+   - Run inference using the trained model
+   - Fetch betting odds for context
    - Upload results to current predictions
 
-3. Sleep until next scheduled run (12:00 Helsinki)
+3. **Sleep** until next scheduled run
 
 ---
 
 ## API Endpoints
 
-### POST /predict
+### GET /predict?team1=&team2=
 
 Predict a single matchup using the trained model.
 
-Input:
-- Home team abbreviation
-- Away team abbreviation
+- `team1`: home team abbreviation (e.g. `CLE`)
+- `team2`: away team abbreviation (e.g. `ATL`)
 
-Output:
-- Home win probability
-- Optional odds context (if available)
+Response:
+```json
+{"winner": "CLE", "confidence": 72.5}
+```
 
 ### POST /update
 
 Manually triggers the same workflow as the daily automation:
 - Resolve finished games
-- Generate today’s predictions
+- Generate today's predictions
 
 ---
 
@@ -245,7 +256,7 @@ This project prioritizes:
 - Production realism over notebook experimentation
 - Reproducibility and automation
 - Clear separation of responsibilities
-- Cloud-native, stateless architecture
+- Cost-efficient, cloud-native architecture
 
 ---
 
@@ -254,10 +265,10 @@ This project prioritizes:
 This repository demonstrates:
 
 - End-to-end machine learning engineering
-- Practical cloud architecture using Amazon S3
+- Practical cloud architecture using Cloudflare R2 and Fly.io
 - Containerized automation and APIs
-- Robust data pipelines
-- Thoughtful model selection based on real-world performance
+- Robust, production-quality data pipelines
+- Thoughtful infrastructure decisions driven by real cost and operational constraints
 
 It is intended as a portfolio-quality example of how to build, operate, and reason about a real ML system.
 

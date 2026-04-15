@@ -9,7 +9,7 @@ Uses:
 
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 import requests
 
@@ -71,7 +71,7 @@ def generate_new_predictions():
         return None
 
     try:
-        today_str = datetime.utcnow().strftime("%Y%m%d")
+        today_str = datetime.now(timezone.utc).strftime("%Y%m%d")
         url = (
             "https://site.api.espn.com/apis/site/v2/sports/"
             f"basketball/nba/scoreboard?dates={today_str}"
@@ -87,12 +87,8 @@ def generate_new_predictions():
             return []
 
         predictor = MakePrediction()
-        try:
-            existing = history.load_current_predictions()
-            existing_ids = {r.get("gameId") for r in existing if "gameId" in r}
-        except:
-            existing = []
-            existing_ids = []
+        existing = history.load_current_predictions()
+        existing_ids = {r.get("gameId") for r in existing if "gameId" in r}
 
         new_rows = []
 
@@ -167,11 +163,17 @@ def generate_new_predictions():
                     row["home_odds"] = None
                     row["away_odds"] = None
 
-        if not new_rows and existing == []:
-            logger.info("No NBA games today, creating placeholder prediction.")
+        if not new_rows:
+            # Only write a placeholder when there are no real predictions in storage.
+            # Avoids overwriting valid predictions on days with no new matchups.
+            real_existing = [r for r in existing if r.get("team") != "NO_GAMES_TODAY"]
+            if real_existing:
+                logger.info("No new games to predict; existing predictions remain — skipping placeholder.")
+                return []
 
-            today = datetime.utcnow().strftime("%Y-%m-%d")
-            #Place holder needed, as powerbi update fails with empty current_predictions
+            logger.info("No NBA games today, creating placeholder prediction.")
+            today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            # Placeholder needed: Power BI update fails on empty current_predictions.
             placeholder = {
                 "team": "NO_GAMES_TODAY",
                 "opponent": None,
@@ -180,10 +182,7 @@ def generate_new_predictions():
                 "confidence": 100.0,
                 "gameId": f"NO_GAMES_{today.replace('-', '')}",
             }
-
-            existing = history.load_current_predictions() or []
             history.save_current_predictions(existing + [placeholder])
-
             return [placeholder]
 
         combined = existing + new_rows
