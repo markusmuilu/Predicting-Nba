@@ -63,3 +63,4 @@ test.py
 
 # Local data
 data/
+.claude/
