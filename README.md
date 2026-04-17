@@ -69,6 +69,38 @@ This project is **not** a betting system.
 
 ---
 
+## Project Evolution
+
+This project has gone through two major infrastructure generations.
+
+### V1 — Original Stack (Nov 2025 – Apr 2026)
+
+| Component | Technology |
+|-----------|------------|
+| Backend hosting | AWS EC2 |
+| Object storage | AWS S3 |
+| Analytics layer | Power BI (embedded in portfolio) |
+
+The original system ran on an AWS EC2 instance with an S3 bucket for model and prediction storage. A Power BI dashboard was embedded in the portfolio site as the analytics layer.
+
+### V2 — Current Stack (Apr 2026–present)
+
+| Component | Technology |
+|-----------|------------|
+| Backend hosting | Fly.io (arn region) |
+| Object storage | Cloudflare R2 |
+| Analytics layer | Streamlit Community Cloud |
+
+**Reasons for migration:**
+- AWS EC2 and S3 free trials ended — Fly.io (256MB shared machine) and Cloudflare R2 are free at the project's current scale
+- Power BI free trial ended — replaced with a custom Streamlit dashboard that is permanently free
+- Fly.io simplifies container orchestration and HTTPS termination vs managing an EC2 instance manually
+- Cloudflare R2 has no egress fees, which matters when the model bundle is loaded from storage on every prediction request
+
+The S3 client abstraction (`s3_client.py`) was kept S3-compatible so migration required only setting an `endpoint_url` — no application code changes.
+
+---
+
 ## Infrastructure
 
 ### Hosting — Fly.io
