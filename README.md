@@ -41,7 +41,6 @@ This project is **not** a betting system.
 - Per-team game log collection from PBPStats with automatic retries
 - 6-hour cache on per-team data to avoid redundant PBPStats requests
 - Centralized team metadata stored in object storage
-- Corrected defensive rating formula (`OppPoints / DefPoss * 100`) for accurate feature engineering
 - Cleaned datasets persisted for reproducibility
 
 ### Machine Learning
@@ -105,7 +104,7 @@ The S3 client abstraction (`s3_client.py`) was kept S3-compatible so migration r
 
 ### Hosting — Fly.io
 
-The application runs on [Fly.io](https://fly.io) (`arn` region, 1 GB / 1 CPU).
+The application runs on [Fly.io](https://fly.io) (`arn` region, 256 MB / 1 CPU).
 
 Previously hosted on AWS EC2; migrated to Fly.io to reduce costs and simplify deployment. Fly handles container orchestration, HTTPS termination, and machine lifecycle automatically.
 
