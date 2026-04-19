@@ -92,7 +92,7 @@ The original system ran on an AWS EC2 instance with an S3 bucket for model and p
 | Analytics layer | Streamlit Community Cloud |
 
 **Reasons for migration:**
-- AWS EC2 and S3 free trials ended — Fly.io (256MB shared machine) and Cloudflare R2 are free at the project's current scale
+- AWS EC2 and S3 free trials ended — Fly.io (512MB shared machine) and Cloudflare R2 are free at the project's current scale
 - Power BI free trial ended — replaced with a custom Streamlit dashboard that is permanently free
 - Fly.io simplifies container orchestration and HTTPS termination vs managing an EC2 instance manually
 - Cloudflare R2 has no egress fees, which matters when the model bundle is loaded from storage on every prediction request
@@ -105,7 +105,7 @@ The S3 client abstraction (`s3_client.py`) was kept S3-compatible so migration r
 
 ### Hosting — Fly.io
 
-The application runs on [Fly.io](https://fly.io) (`arn` region, 1 GB / 1 CPU).
+The application runs on [Fly.io](https://fly.io) (`arn` region, 512 MB / 1 CPU).
 
 Previously hosted on AWS EC2; migrated to Fly.io to reduce costs and simplify deployment. Fly handles container orchestration, HTTPS termination, and machine lifecycle automatically.
 
