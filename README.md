@@ -41,7 +41,6 @@ This project is **not** a betting system.
 - Per-team game log collection from PBPStats with automatic retries
 - 6-hour cache on per-team data to avoid redundant PBPStats requests
 - Centralized team metadata stored in object storage
-- Corrected defensive rating formula (`OppPoints / DefPoss * 100`) for accurate feature engineering
 - Cleaned datasets persisted for reproducibility
 
 ### Machine Learning
