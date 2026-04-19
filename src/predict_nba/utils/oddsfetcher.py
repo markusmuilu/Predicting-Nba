@@ -11,6 +11,7 @@ load_dotenv()
 API_KEY = os.getenv("ODDS_API_KEY")
 
 class OddsFetcher:
+    @staticmethod
     def fetch_odds():
         """Fetches NBA odds from the Odds API."""
         params = {

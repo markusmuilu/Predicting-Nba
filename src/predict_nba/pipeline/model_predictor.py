@@ -28,6 +28,9 @@ class ModelPredictor:
     def __init__(self):
         load_dotenv()
 
+        self.model = None
+        self.scaler = None
+
         self.features = [
             "OffPoss_avg", "DefPoss_avg", "Pace_avg", "Fg3Pct_avg", "Fg2Pct_avg", "TsPct_avg",
             "OffRtg_avg", "DefRtg_avg", "NetRtg_avg", "EfgDiff_avg", "TsDiff_avg",
@@ -52,6 +55,68 @@ class ModelPredictor:
         except Exception as e:
             CustomException(f"Failed to initialize S3 client: {e}", sys)
             self.s3 = None
+
+    def load_bundle(self):
+        """Downloads the model bundle once and caches model+scaler on the instance."""
+        if self.s3 is None:
+            raise RuntimeError("S3 client not initialized.")
+
+        model_key = "models/prediction_model.skops"
+        logger.info(f"Loading model bundle at startup: {model_key}")
+        model_bytes = self.s3.download(model_key)
+        if model_bytes is None:
+            raise RuntimeError("Failed to download model bundle.")
+
+        untrusted = sio.get_untrusted_types(data=model_bytes)
+        bundle = sio.loads(model_bytes, trusted=untrusted)
+
+        self.model = bundle.get("model")
+        self.scaler = bundle.get("scaler")
+
+        if self.model is None or self.scaler is None:
+            raise RuntimeError("Model bundle is missing 'model' or 'scaler'.")
+
+        logger.info("Model bundle cached successfully.")
+
+    def predict_matchup_with_bundle(self, team1, team2):
+        """Predicts using the pre-loaded model/scaler — skips the R2 model download."""
+        if self.model is None or self.scaler is None:
+            logger.error("predict_matchup_with_bundle called before load_bundle.")
+            return None
+
+        if self.s3 is None:
+            logger.error("S3 client not initialized.")
+            return None
+
+        try:
+            data_key = f"predict/clean/{team1}vs{team2}.csv"
+            logger.info(f"Downloading matchup data: {data_key}")
+            data_bytes = self.s3.download(data_key)
+            if data_bytes is None:
+                return None
+
+            df = pd.read_csv(io.BytesIO(data_bytes))
+            feature_cols = [f for f in self.features if f in df.columns]
+
+            if not feature_cols:
+                logger.error("Prediction data contains no valid features.")
+                return None
+
+            X = df[feature_cols]
+            X_scaled = self.scaler.transform(X)
+
+            pred = self.model.predict(X_scaled)[0]
+            prob = self.model.predict_proba(X_scaled)[0][1]
+
+            winner = team1 if pred == 1 else team2
+            confidence = round(prob * 100 if pred == 1 else (1 - prob) * 100, 2)
+
+            logger.info(f"Predicted: {winner} ({confidence}%)")
+            return {"winner": winner, "confidence": confidence}
+
+        except Exception as e:
+            CustomException(f"predict_matchup_with_bundle failed: {e}", sys)
+            return None
 
     def predict_matchup(self, team1, team2):
         """
