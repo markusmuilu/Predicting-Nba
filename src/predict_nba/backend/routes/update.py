@@ -18,7 +18,7 @@ router = APIRouter(prefix="/update", tags=["Updates"])
 
 
 @router.post("")
-@limiter.limit("1/minute")
+@limiter.limit("5/minute")
 def update_daily_stats(
     request: Request,
     authorization: Optional[str] = Header(None),

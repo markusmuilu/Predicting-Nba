@@ -17,7 +17,7 @@ _TEAM_RE = re.compile(r"^[A-Z]{2,4}$")
 
 
 @router.get("")
-@limiter.limit("1/minute")
+@limiter.limit("5/minute")
 def get_prediction(
     request: Request,
     team1: str = Query(..., description="Home team abbreviation (e.g., CLE)"),
