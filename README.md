@@ -1,24 +1,22 @@
 # NBA Win Probability Prediction System
 
-A fully automated, containerized NBA game win-probability prediction system built with FastAPI, Docker, and Cloudflare R2.
-
-The system implements a complete production-style machine learning pipeline: multi-season data ingestion, feature engineering, model training, scheduled daily inference, and API-based access, all without a traditional database.
-
-All system state (training data, cleaned datasets, trained models, current predictions, and historical results) is persisted exclusively in object storage.
+Predicts the winner of every NBA game each day, unattended, and records whether it was right.
+A logistic regression model on team-level features runs as a FastAPI service on Fly.io. There is no
+database: training data, the model, predictions and their outcomes all live in Cloudflare R2.
+Results are shown in a separate Streamlit dashboard,
+[`nba-dashboard`](https://github.com/markusmuilu/nba-dashboard).
 
 ---
 
-## Project Overview
+## Results
 
-This repository demonstrates how to design and operate a real-world machine learning system rather than a standalone model or notebook.
-
-Key characteristics:
-
-- End-to-end ML pipeline (collection → training → inference)
-- Stateless, cloud-native architecture
-- Fully automated daily prediction workflow
-- Container-oriented design with clear separation of responsibilities
-- API-first interface for downstream consumers (dashboards, BI tools, etc.)
+- **68.2% accuracy over 674 games** predicted live, from the prediction history as shown on the
+  Streamlit dashboard. Team-level features only, no player data.
+- **Backtest against Pinnacle closing odds** across the same 674 games: roughly -0.34% overall,
+  and +1.1% in the 61%+ confidence bucket. That threshold was chosen after seeing the results, so
+  it is a retrospective slice, not a proven edge. No money was staked.
+- **Not yet compared with a simple baseline** such as always picking the home team, so the
+  accuracy figure has no reference point in this repo yet.
 
 ---
 
