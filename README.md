@@ -2,7 +2,7 @@
 
 A fully automated, containerized NBA game win-probability prediction system built with FastAPI, Docker, and Cloudflare R2.
 
-The system implements a complete production-style machine learning pipeline: multi-season data ingestion, feature engineering, model training, scheduled daily inference, and API-based access — all without a traditional database.
+The system implements a complete production-style machine learning pipeline: multi-season data ingestion, feature engineering, model training, scheduled daily inference, and API-based access, all without a traditional database.
 
 All system state (training data, cleaned datasets, trained models, current predictions, and historical results) is persisted exclusively in object storage.
 
@@ -72,7 +72,7 @@ This project is **not** a betting system.
 
 This project has gone through two major infrastructure generations.
 
-### V1 — Original Stack (Nov 2025 – Apr 2026)
+### V1: Original Stack (Nov 2025 – Apr 2026)
 
 | Component | Technology |
 |-----------|------------|
@@ -82,7 +82,7 @@ This project has gone through two major infrastructure generations.
 
 The original system ran on an AWS EC2 instance with an S3 bucket for model and prediction storage. A Power BI dashboard was embedded in the portfolio site as the analytics layer.
 
-### V2 — Current Stack (Apr 2026–present)
+### V2: Current Stack (Apr 2026–present)
 
 | Component | Technology |
 |-----------|------------|
@@ -91,30 +91,30 @@ The original system ran on an AWS EC2 instance with an S3 bucket for model and p
 | Analytics layer | Streamlit Community Cloud |
 
 **Reasons for migration:**
-- AWS EC2 and S3 free trials ended — Fly.io (512MB shared machine) and Cloudflare R2 are free at the project's current scale
-- Power BI free trial ended — replaced with a custom Streamlit dashboard that is permanently free
+- AWS EC2 and S3 free trials ended: Fly.io (512MB shared machine) and Cloudflare R2 are free at the project's current scale
+- Power BI free trial ended, replaced with a custom Streamlit dashboard that is permanently free
 - Fly.io simplifies container orchestration and HTTPS termination vs managing an EC2 instance manually
 - Cloudflare R2 has no egress fees, which matters when the model bundle is loaded from storage on every prediction request
 
-The S3 client abstraction (`s3_client.py`) was kept S3-compatible so migration required only setting an `endpoint_url` — no application code changes.
+The S3 client abstraction (`s3_client.py`) was kept S3-compatible so migration required only setting an `endpoint_url`: no application code changes.
 
 ---
 
 ## Infrastructure
 
-### Hosting — Fly.io
+### Hosting: Fly.io
 
 The application runs on [Fly.io](https://fly.io) (`arn` region, 512 MB / 1 CPU).
 
 Previously hosted on AWS EC2; migrated to Fly.io to reduce costs and simplify deployment. Fly handles container orchestration, HTTPS termination, and machine lifecycle automatically.
 
-### Storage — Cloudflare R2
+### Storage: Cloudflare R2
 
 Object storage uses [Cloudflare R2](https://developers.cloudflare.com/r2/).
 
 Previously used AWS S3; migrated to Cloudflare R2 after the AWS free trial ended. R2 is S3-compatible (boto3 works unchanged via `endpoint_url`) and has no egress fees, which significantly reduces costs for a project that reads storage on every prediction request.
 
-The S3Client supports both AWS S3 and R2 via the `R2_ENDPOINT` environment variable — set it for R2, leave blank for AWS.
+The S3Client supports both AWS S3 and R2 via the `R2_ENDPOINT` environment variable: set it for R2, leave blank for AWS.
 
 ---
 
@@ -288,19 +288,3 @@ This project prioritizes:
 - Reproducibility and automation
 - Clear separation of responsibilities
 - Cost-efficient, cloud-native architecture
-
----
-
-## Summary
-
-This repository demonstrates:
-
-- End-to-end machine learning engineering
-- Practical cloud architecture using Cloudflare R2 and Fly.io
-- Containerized automation and APIs
-- Robust, production-quality data pipelines
-- Thoughtful infrastructure decisions driven by real cost and operational constraints
-
-It is intended as a portfolio-quality example of how to build, operate, and reason about a real ML system.
-
-If you like this project, consider giving it a GitHub star.
