@@ -20,8 +20,12 @@ pipeline and deploy workflows were not touched.
   odds, the actual-roster model has log loss 0.5427 against the market's 0.5432. That is because it knows who played and
   the market, priced hours earlier, did not. The same model with a previous-game roster scores 0.5573, clearly worse than the market.
   Its +6.8x quarter-Kelly bankroll is an artefact, not an edge.
-- **Jev (Part 2) was not run.** `JEV_API_KEY` was not set. The code is written and tested only to the point of exiting
-  cleanly without a key. No Jev number exists anywhere in this work.
+- **Jev (Part 2) was run in a second session**, once the key was available (it had not been in the environment the first time).
+  4,894 requests, 8.9 million input tokens, no failures. Its raw probabilities are overconfident and score worse than the logistic
+  regression (test log loss 0.6416 with real names, 0.6583 anonymised, against 0.6057). Recalibrated with two numbers fitted on the
+  validation season only, it scores 0.5964 (names) and 0.5985 (anonymised): level with the logistic regression (+0.009, interval
+  -0.002 to +0.020), a little behind the player model (0.5895), and clearly behind the market. Real names help by about 0.017 raw but
+  only 0.002 after recalibration, so most of that raw gap is calibration, not memorised results (section 8).
 - **The Fly.io service is alive** but has stopped saving predictions (section 10).
 - **The dashboard is now a static site** rebuilt daily by a GitHub Action (section 9). It needs three manual steps from you to go live.
 
@@ -39,7 +43,7 @@ Predicting-Nba, branch `player-model`, everything new under `research/` (outside
 | `research/train.py` | Steps 5 and 6. Grid, five seeds, temperature scaling, the linear ablation. |
 | `research/evaluate.py` | Step 7. Metrics, calibration, de-vigging, ROI and Kelly. Shared by every model. |
 | `research/report.py` | Scores every model on the same games, writes tables, plots and `metrics.json`. |
-| `research/jev.py` | Part 2. Written, never run with a key. |
+| `research/jev.py` | Part 2. Asks Jev for a home win probability per game, named and anonymised. Cached responses in `data/raw/jev/`. |
 | `research/results/` | Committed outputs: per-game predictions per model, metrics, plots. |
 | `data/` | The raw download cache. Git-ignored, about 75 MB. |
 
@@ -50,6 +54,7 @@ python -m research.fetch            # fills data/raw, about 20 minutes, rate lim
 python -m research.baseline
 python -m research.player_features actual && python -m research.train actual
 python -m research.player_features previous && python -m research.train previous
+python -m research.jev previous      # needs a Jev key; about 5 minutes, 8.9M input tokens
 python -m research.report
 ```
 
@@ -186,6 +191,10 @@ All on the same 1,209 games per season. Higher accuracy is better, lower Brier, 
 | Logistic regression (production features) | 0.667 | 0.2093 | 0.6057 | 0.025 |
 | Player model, previous-game roster | 0.676 | 0.2027 | 0.5895 | 0.026 |
 | Linear on player features, previous-game roster | 0.678 | 0.2045 | 0.5936 | 0.027 |
+| Jev, real names, recalibrated on validation | 0.682 | 0.2048 | 0.5964 | 0.024 |
+| Jev, anonymised, recalibrated on validation | 0.674 | 0.2058 | 0.5985 | 0.023 |
+| Jev, real names, raw | 0.663 | 0.2217 | 0.6416 | 0.114 |
+| Jev, anonymised, raw | 0.653 | 0.2277 | 0.6583 | 0.127 |
 | Player model, **actual roster (optimistic)** | 0.693 | 0.1976 | 0.5782 | 0.029 |
 | Linear on player features, actual roster (optimistic) | 0.693 | 0.1988 | 0.5808 | 0.021 |
 | Constant (home win rate 55.3%) | 0.553 | 0.2472 | 0.6874 | n/a |
@@ -197,6 +206,8 @@ All on the same 1,209 games per season. Higher accuracy is better, lower Brier, 
 | Logistic regression (production features) | 0.679 | 0.2104 | 0.6077 | 0.035 |
 | Player model, previous-game roster | 0.684 | 0.2077 | 0.6024 | 0.029 |
 | Linear on player features, previous-game roster | 0.689 | 0.2073 | 0.6019 | 0.041 |
+| Jev, real names / anonymised, raw | 0.647 / 0.637 | 0.2288 / 0.2355 | 0.6550 / 0.6744 | 0.109 / 0.128 |
+| Jev, real names / anonymised, recalibrated (fitted on this season, so slightly optimistic) | 0.663 / 0.661 | 0.2110 / 0.2117 | 0.6095 / 0.6110 | 0.045 / 0.041 |
 | Player model, actual roster (optimistic) | 0.690 | 0.2022 | 0.5892 | 0.033 |
 | Linear on player features, actual roster (optimistic) | 0.698 | 0.2013 | 0.5874 | 0.024 |
 
@@ -206,10 +217,14 @@ All on the same 1,209 games per season. Higher accuracy is better, lower Brier, 
 |---|---|---|
 | Player model, previous-game roster | +0.005 [-0.007, +0.018] | +0.016 [+0.004, +0.029] |
 | Linear on player features, previous-game roster | +0.006 [-0.007, +0.018] | +0.012 [-0.001, +0.025] |
+| Jev, real names, recalibrated | -0.002 [-0.012, +0.008] | +0.009 [-0.002, +0.020] |
+| Jev, anonymised, recalibrated | -0.003 [-0.013, +0.007] | +0.007 [-0.003, +0.017] |
+| Jev, real names, raw | -0.047 [-0.071, -0.025] | -0.036 [-0.060, -0.012] |
+| Jev, anonymised, raw | -0.067 [-0.094, -0.041] | -0.053 [-0.080, -0.026] |
 | Player model, actual roster (optimistic) | +0.019 [+0.002, +0.034] | +0.028 [+0.012, +0.043] |
 
 **How to read this honestly.** With a fair roster the player model is slightly better than the baseline on both seasons, but the validation
-gap is inside the noise, the test gap just clears it, and a linear model on the same inputs is within noise of the network. The defensible
+gap is inside the noise, the test gap just clears it, and a linear model on the same inputs is within noise of the network. Jev, recalibrated, lands in the same place as the linear models. The defensible
 sentence is: *"Adding player-level features improved log loss by about 0.005 to 0.016 over a team-level logistic regression on a fixed
 chronological split; a deep set model was no better than a linear model on the same features."* The sentence you cannot defend is any
 claim about beating the market.
@@ -227,13 +242,16 @@ how confident each model is; the optimistic roster model is bolder: 253 test gam
 | Logistic regression | 0.696 | 0.1980 | 0.5805 | -0.2% | 0.04x | 98% |
 | Player model, previous-game roster | 0.701 | 0.1888 | 0.5573 | -0.9% | 0.57x | 85% |
 | Linear, previous-game roster | 0.699 | 0.1926 | 0.5663 | -0.4% | 0.24x | 92% |
+| Jev, real names, recalibrated | 0.699 | 0.1960 | 0.5772 | -0.1% | 0.04x | 97% |
+| Jev, anonymised, recalibrated | 0.691 | 0.1978 | 0.5813 | -1.4% | 0.02x | 99% |
+| Jev, real names, raw | 0.679 | 0.2097 | 0.6096 | -1.7% | 0.02x | 98% |
 | Player model, actual roster (optimistic) | 0.722 | 0.1825 | 0.5427 | +3.2% | 6.79x | 59% |
 | Linear, actual roster (optimistic) | 0.724 | 0.1869 | 0.5532 | +4.5% | 1.65x | 66% |
 
 ![Quarter-Kelly bankroll over the 680 games with odds](../research/results/bankroll_test.png)
 
 - Every fair model is **worse than the market** on log loss. The market is the benchmark that matters, and nobody here has beaten it.
-- The three fair models lose money under the quarter-Kelly rule, and lose most of the bankroll (drawdowns of 85% to 98%). That is what betting on
+- The fair models, Jev included, lose money under the quarter-Kelly rule, and lose most of the bankroll (drawdowns of 85% to 98%). That is what betting on
   an edge that is not there looks like. The production baseline ends at 0.04x.
 - The optimistic rows reaching 6.8x are the roster effect, not skill. Kelly sizing amplifies any overconfidence relative to the market.
 - **The odds are not closing lines.** `daily_generate.py` fetches Pinnacle prices when the daily job runs, about 12:00 Helsinki, for games
@@ -249,24 +267,43 @@ over 1,079 games. Broken down: the current version (V2.2) scored 68.2% over its 
 and then 61.5% over 91 play-in and playoff games. Versions V1 and the custom NumPy network, which ran earlier in the season, scored 60.1% and
 53.1%. So the README number is true and is the best of four versions over the easier part of the season.
 
-## 8. Jev (Part 2): not run
+## 8. Jev (Part 2)
 
-The task said to run it only if `JEV_API_KEY` is set. It was not set (checked as a process, user and machine environment variable) so nothing was
-sent anywhere. What exists:
+**Setup.** `research/jev.py` calls `POST https://api.typesafe.ai/v1/systemone` (`jev-latest`, which answered as `jev-1.13.0`) with a `state`
+and one `noul` question, "using only the pre-game information in the state, will the home team win?", and takes the returned probability.
+The state is the same pre-game information the models get: season record and last-10 ratings from the production cleaner's columns, rest days,
+back-to-back, and each team's eight players with most expected minutes with their pre-game rolling points, rebounds, assists and plus/minus.
+No results, no scores, no post-tip-off information. The roster is the **previous-game roster**, the fair setting; an actual-roster run was
+not done for Jev because it would only reproduce the optimism seen for the other models.
 
-- `research/jev.py` follows `docs.typesafe.ai/api`: `POST https://api.typesafe.ai/v1/systemone`, bearer auth, a `state` object, one `noul`
-  (yes/no) question whose answer is a probability, `jev-latest`. The response carries `usage.input_tokens`, which the script sums.
-- It builds the same pre-game information the models get (season record, last-10 ratings from the production cleaner's columns, rest, back-to-back,
-  and each team's eight players with most expected minutes and their pre-game rolling averages), with no results.
-- It runs each validation and test game twice, **named** and **anonymised** ("Home team", "Home player 3", no date). A model that has memorised
-  results can recall them from names. A large named-minus-anonymised gap would be memory, not skill; the anonymised score would be the honest one.
-- It caches every response in `data/raw/jev/`, stops before 50 million input tokens, writes the token total to `research/results/jev_usage.json`,
-  reads the key only from the environment, and never prints or writes it.
-- **Untested against the live API**, because there was no key. The first thing to check on a real run is that `answers.home_wins.noul` is the
-  field name (taken from the docs' examples), then to run it on a handful of games and look at the usage numbers before the full run.
-  The roster here uses who played, so the same optimism applies and the fair Jev run should use the previous-game roster too (not yet wired in).
-- The dashboard's comparison tab shows a "not run" notice and fills in automatically once `pred_jev_*.csv` files exist and `report.py` is re-run.
-- Access note from the vault: direct signup was paused on 22 Sep; I did not check whether that has changed.
+**Key handling.** The task named `JEV_API_KEY`; the key on this machine is `JEVS_API_KEY` in the repo's `.env`. The script reads either name from the
+environment or from `.env`, using `dotenv_values`, which does not put the value in the process environment. The value goes only into the
+Authorization header. It is not printed, logged, cached (the cache files hold only the probability, token counts and model name) or committed. `.env` was never displayed.
+
+**Run.** Every validation and test game (2,450 games, of which 1,209 per season are in the common comparison set), twice: **real names** (team abbreviations,
+player names, the date) and **anonymised** ("Home team", "Home player 3", no date). 4,894 requests, **8,903,729 input tokens** and 107,800 output
+tokens, 0 failures, against the 50 million budget. Usage totals: `research/results/jev_usage_previous.json`. One prompt was written and used;
+it was not iterated on any season.
+
+**What came out.**
+- **Raw Jev is overconfident.** Its answers sit nearer 0 and 1 than the outcomes justify (calibration error 0.11 to 0.13 against 0.02 to 0.03
+  for the other models), and its raw log loss is worse than the logistic regression by 0.036 (names) and 0.053 (anonymised) on test, both clearly outside noise.
+- **Recalibrated, it is competitive.** A two-parameter Platt correction, `sigmoid(a * logit(p) + b)`, fitted on 2024-25 only and applied unchanged to
+  2025-26, brings test log loss to 0.5964 (names) and 0.5985 (anonymised). That is +0.009 and +0.007 over the logistic regression with intervals that
+  include zero, i.e. level with the baseline, and slightly behind the player model's 0.5895. On accuracy it is ahead of the logistic regression (68.2% and 67.4% against 66.7%).
+  Against the market on the 680 odds games it is at 0.5772 (names), behind the previous-roster player model at 0.5573 and the market at 0.5432.
+- **The memorisation check.** Real names improve raw log loss by 0.0167 on test (interval +0.012 to +0.022) and 0.0193 on validation. After recalibration the
+  gain is 0.0021 on test (interval -0.0002 to +0.0044) and 0.0015 on validation (-0.0008 to +0.0037). So the raw gap is mostly the named run being less overconfident
+  rather than recalling scores. Two cautions: this does not prove there is no memorisation (names also carry legitimate general knowledge, such as that
+  a franchise has been strong for years, and the check only detects what survives a two-number recalibration); and the two seasons may differ in whether they
+  are inside the model's pretraining data. They look alike here, but I cannot see its training cutoff.
+- **A forking path.** The recalibration rows were added after I saw the raw Jev numbers on both seasons. The correction uses validation only, so test was
+  not used to fit anything, but the decision to add it was prompted by seeing the raw result.
+
+**What this does and does not show.** Jev, with no training on NBA data and given a short text table of stats, performs about as well as a
+trained logistic regression once its probabilities are put on the right scale. It does not beat the market, and a combination of Jev with the player model
+(the "hybrid" idea in the vault note) has not been tried. Other limits: one prompt version, only the top eight players shown, one test season.
+Cost was tiny: about $0.37 of input at the quoted $0.042 per million tokens (a company figure, not independently checked).
 
 ## 9. The dashboard
 
@@ -287,8 +324,8 @@ What it gives up: the old sidebar filters (no live querying), and data up to a d
 **What it contains:**
 1. *2026-27 season*: the production model's daily predictions against results, running accuracy (cumulative and last 20), calibration, latest games.
    **It is empty right now and says so**, because no 2026-27 regular-season game has been scored yet (section 10 explains why preseason games are missing).
-2. *Model comparison*: the test-season table, the paired-bootstrap table, calibration of the models, the market table, and a visible warning about the
-   optimistic roster rows. The Jev rows are absent with a "not run" note.
+2. *Model comparison*: the test-season table, the paired-bootstrap table, calibration of the models, the market table, a visible warning about the
+   optimistic roster rows, and the Jev rows (raw and recalibrated) with a note explaining the recalibration.
 3. *2025-26 archive*: from the five old tabs I kept what answers a question: accuracy by model version, running accuracy, calibration, per-team
    accuracy, favourite versus underdog accuracy, and the flat-stake result across all 773 games with odds (-1.2% ROI, the unselected overall figure,
    not a slice). Dropped: the confusion matrix, five betting strategies, daily and monthly P&L tables and the head-to-head grid, which need filters to be useful.
@@ -368,7 +405,7 @@ Checked with GET requests only on 2026-10-05 and 06:
    And what it costs (no live filters, a 60-day scheduled-workflow limit, daily staleness).
 9. **The forking path** in section 5. Say it before they ask.
 
-Do not claim: that this beats the market, that the 6.8x bankroll is meaningful, that Jev was evaluated, or that the player model is deployed.
+Do not claim: that this beats the market, that the 6.8x bankroll is meaningful, that Jev beat the baseline (it matched it after recalibration), or that the player model is deployed.
 
 ## 13. Out of scope, and what it would take
 
@@ -383,7 +420,7 @@ Not done, as instructed. Rough list, in the order I would do it:
 4. **Shadow mode**: run next to the logistic regression, store both probabilities, the model version and the feature timestamp per prediction in R2, never show the new one as primary.
 5. **Monitoring**: calibration drift over a rolling window, data freshness (age of the newest player row), prediction volume per day, input drift against the training distribution,
    model version per prediction.
-6. **Evaluation on forward data only** for 2026-27 (including Jev if access exists), with a threshold fixed before the first game.
+6. **Evaluation on forward data only** for 2026-27 (Jev included: its pretraining may contain 2025-26, so only games after setup are clean for it), with a threshold fixed before the first game. The Jev plus player-model hybrid from the vault note is untested.
 
 ## 14. Decisions made without asking
 
@@ -391,6 +428,7 @@ Not done, as instructed. Rough list, in the order I would do it:
 - Antisymmetric head as the default, the plan's plain MLP kept as an option and compared.
 - A linear ablation was added to separate "player data" from "deep model".
 - Paired bootstrap added so that small gaps are not over-read.
+- Jev recalibration (two numbers, validation only) added after seeing its raw result, and reported next to the raw rows.
 - `research/` outside `src/` and a separate requirements file, so the production image is unchanged.
 - Static site on GitHub Pages rather than Cloudflare Pages; Plotly vendored.
 - The legacy Streamlit code was left in place and its README moved to `docs/streamlit-legacy.md`.

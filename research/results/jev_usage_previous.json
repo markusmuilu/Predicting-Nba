@@ -1,0 +1,11 @@
+{
+  "input_tokens": 8903729,
+  "output_tokens": 107800,
+  "requests": 4894,
+  "cached": 6,
+  "failed": 0,
+  "models": [
+    "jev-1.13.0"
+  ],
+  "roster_mode": "previous"
+}

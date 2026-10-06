@@ -35,20 +35,44 @@ MODELS = {
     "player_logreg": ("Ablation: logreg on player features, actual roster", "pred_player_logreg.csv"),
     "player_model_prev": ("Player model, previous-game roster", "pred_player_model_previous.csv"),
     "player_logreg_prev": ("Ablation: logreg on player features, previous-game roster", "pred_player_logreg_previous.csv"),
-    "jev_named": ("Jev, named", "pred_jev_named.csv"),
-    "jev_anonymised": ("Jev, anonymised", "pred_jev_anonymised.csv"),
+    "jev_named": ("Jev, real names, previous-game roster", "pred_jev_named_previous.csv"),
+    "jev_anonymised": ("Jev, anonymised, previous-game roster", "pred_jev_anonymised_previous.csv"),
+    "jev_named_cal": ("Jev, real names, recalibrated on validation", None),
+    "jev_anonymised_cal": ("Jev, anonymised, recalibrated on validation", None),
 }
 KEY = ["date", "home", "away"]
+
+
+def platt_recalibrate(df):
+    """
+    Jev's raw probabilities are overconfident. Fit p' = sigmoid(a * logit(p) + b) on the
+    validation season only (two numbers) and apply it unchanged to the test season. The
+    validation rows are scored in-sample, so validation numbers for these rows are slightly
+    optimistic; test numbers are not.
+    """
+    from sklearn.linear_model import LogisticRegression
+    d = df.copy()
+    p = d["p_home"].clip(0.01, 0.99)
+    z = np.log(p / (1 - p)).to_numpy().reshape(-1, 1)
+    val = (d["season"] == VAL_SEASON).to_numpy()
+    lr = LogisticRegression(C=1e6).fit(z[val], d.loc[val, "home_win"])
+    d["p_home"] = lr.predict_proba(z)[:, 1]
+    return d
 
 
 def load_predictions():
     preds = {}
     for key, (_, fname) in MODELS.items():
+        if fname is None:
+            continue
         path = RESULTS_DIR / fname
         if not path.exists():
             continue
         df = pd.read_csv(path).rename(columns={"Date": "date"})
         preds[key] = df[KEY + ["season", "home_win", "p_home"]]
+    for key in ("jev_named", "jev_anonymised"):
+        if key in preds:
+            preds[key + "_cal"] = platt_recalibrate(preds[key])
     return preds
 
 
@@ -121,6 +145,12 @@ def run():
             split["buckets"][k] = confidence_buckets(y, games[f"p_{k}"])
         split["paired_vs_logreg"] = {k: paired_bootstrap(y, games["p_logreg"], games[f"p_{k}"])
                                      for k in preds if k != "logreg"}
+        if "jev_named" in preds and "jev_anonymised" in preds:
+            # Memorisation check: positive = real names help. Raw and recalibrated.
+            split["jev_names_vs_anonymised"] = {
+                "raw": paired_bootstrap(y, games["p_jev_anonymised"], games["p_jev_named"]),
+                "recalibrated": paired_bootstrap(y, games["p_jev_anonymised_cal"], games["p_jev_named_cal"]),
+            }
         split["metrics"]["always_home"] = classification_metrics(y, np.full(len(y), y.mean()))
 
         plot_calibration({names[k]: (y, games[f"p_{k}"].to_numpy()) for k in preds},
@@ -190,6 +220,13 @@ def write_table(out):
         lines.append("|---|---|---|")
         for k, b in split["paired_vs_logreg"].items():
             lines.append(f"| {out['models'][k]} | {b['mean_diff']:+.4f} | [{b['ci_low']:+.4f}, {b['ci_high']:+.4f}] |")
+    for label, split in out["splits"].items():
+        if "jev_names_vs_anonymised" in split:
+            lines.append(f"\n**{label.capitalize()}: Jev with real names vs anonymised, log loss gain from names, paired bootstrap 95% CI**\n")
+            lines.append("| Version | Mean | 95% CI |")
+            lines.append("|---|---|---|")
+            for k, b in split["jev_names_vs_anonymised"].items():
+                lines.append(f"| {k} | {b['mean_diff']:+.4f} | [{b['ci_low']:+.4f}, {b['ci_high']:+.4f}] |")
     (RESULTS_DIR / "results_table.md").write_text("\n".join(lines) + "\n")
     print("\n".join(lines))
 

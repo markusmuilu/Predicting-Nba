@@ -24,7 +24,7 @@ response is cached in data/raw/jev/, so a rerun costs nothing for games
 already answered. The API key is read from JEV_API_KEY and never printed,
 logged or written anywhere.
 
-Run: python -m research.jev   (does nothing without JEV_API_KEY)
+Run: python -m research.jev [previous|actual] [limit]   (does nothing without a key)
 """
 
 import json
@@ -34,8 +34,12 @@ import time
 import pandas as pd
 import requests
 
-from research.config import PROCESSED_DIR, RAW_DIR, RESULTS_DIR, TEST_SEASON, VAL_SEASON
-from research.player_features import player_rows, team_context, load_games
+from concurrent.futures import ThreadPoolExecutor
+
+from dotenv import dotenv_values
+
+from research.config import PROCESSED_DIR, RAW_DIR, ROOT, RESULTS_DIR, TEST_SEASON, VAL_SEASON
+from research.player_features import load_games, player_rows, previous_game_ids, team_context
 
 API_URL = "https://api.typesafe.ai/v1/systemone"
 MODEL = "jev-latest"
@@ -85,12 +89,37 @@ def team_block(tf_row, prefix, ctx, players, anonymise, side, abbr):
     }
 
 
-def build_states(games, anonymise):
-    """Yield (game_id, state) for every validation and test game."""
+def find_key():
+    """
+    The key comes from the environment (JEV_API_KEY or JEVS_API_KEY) or from the repo's
+    .env file. dotenv_values reads the file without touching os.environ. The value is
+    only ever passed to the Authorization header.
+    """
+    env = dotenv_values(ROOT / ".env")
+    for name in ("JEV_API_KEY", "JEVS_API_KEY"):
+        key = os.environ.get(name) or env.get(name)
+        if key:
+            return key
+    return None
+
+
+def build_states(games, anonymise, roster_mode):
+    """
+    Yield (game_id, state) for every game given.
+    roster_mode "previous": the players who played in the team's previous game (known before
+    tip-off, the fair setting). "actual": the players who played in this game (optimistic).
+    """
     rows = player_rows()
     rows["exp_min"] = rows["exp_min"].fillna(rows.loc[rows.no_history == 1, "MIN"].median())
     by_team_game = {k: v.nlargest(TOP_PLAYERS, "exp_min") for k, v in rows.groupby(["GAME_ID", "TEAM_ABBREVIATION"])}
+    prev_ids = previous_game_ids(load_games())
     ctx = team_context(games)
+
+    def roster(game_id, team):
+        source = game_id
+        if roster_mode == "previous" and prev_ids[(game_id, team)] is not None:
+            source = prev_ids[(game_id, team)]
+        return by_team_game[(source, team)]
     tf = pd.read_csv(PROCESSED_DIR / "team_features.csv")
     tf = {(r["Date"], r["home"], r["away"]): r for _, r in tf.iterrows()}
 
@@ -99,8 +128,8 @@ def build_states(games, anonymise):
         state = {
             "sport": "NBA regular season game",
             "date": g.date if not anonymise else None,
-            "home": team_block(tf_row, "", ctx.loc[(g.game_id, g.home)], by_team_game[(g.game_id, g.home)], anonymise, "Home", g.home),
-            "away": team_block(tf_row, "Opp_", ctx.loc[(g.game_id, g.away)], by_team_game[(g.game_id, g.away)], anonymise, "Away", g.away),
+            "home": team_block(tf_row, "", ctx.loc[(g.game_id, g.home)], roster(g.game_id, g.home), anonymise, "Home", g.home),
+            "away": team_block(tf_row, "Opp_", ctx.loc[(g.game_id, g.away)], roster(g.game_id, g.away), anonymise, "Away", g.away),
         }
         if anonymise:
             state.pop("date")
@@ -120,50 +149,67 @@ def ask(session, key, state):
     raise RuntimeError(f"Jev request kept failing (last status {resp.status_code})")
 
 
-def run():
-    key = os.environ.get("JEV_API_KEY")
+def run(roster_mode="previous", limit=None, workers=8):
+    """limit: only the first N games per variant (for a small test before the full run)."""
+    key = find_key()
     if not key:
-        print("JEV_API_KEY not set; skipping Part 2.")
+        print("No Jev API key (JEV_API_KEY / JEVS_API_KEY in the environment or .env); skipping Part 2.")
         return None
 
     CACHE.mkdir(exist_ok=True)
     games = load_games()
     games = games[games.season.isin([VAL_SEASON, TEST_SEASON])]
+    if limit:
+        games = games.head(limit)
     # Totals include cached responses, so the log is the total spend across every run.
-    usage = {"input_tokens": 0, "output_tokens": 0, "requests": 0, "cached": 0, "models": set()}
+    usage = {"input_tokens": 0, "output_tokens": 0, "requests": 0, "cached": 0, "failed": 0, "models": set()}
     session = requests.Session()
 
+    def fetch(item):
+        game_id, state, path = item
+        if path.exists():
+            return game_id, json.loads(path.read_text()), True
+        if usage["input_tokens"] >= JEV_TOKEN_BUDGET:
+            return game_id, None, False
+        try:
+            p, u, model = ask(session, key, state)
+        except Exception as e:                      # never include request headers in the message
+            print(f"  game {game_id} failed: {type(e).__name__}")
+            return game_id, None, False
+        rec = {"p_home": p, "usage": u, "model": model}
+        path.write_text(json.dumps(rec))
+        return game_id, rec, False
+
     for variant in ("named", "anonymised"):
+        items = [(gid, state, CACHE / f"{variant}_{roster_mode}_{gid}.json")
+                 for gid, state in build_states(games, anonymise=(variant == "anonymised"), roster_mode=roster_mode)]
         out = []
-        for game_id, state in build_states(games, anonymise=(variant == "anonymised")):
-            path = CACHE / f"{variant}_{game_id}.json"
-            if path.exists():
-                rec = json.loads(path.read_text())
-                usage["cached"] += 1
+        with ThreadPoolExecutor(workers) as pool:
+            for game_id, rec, was_cached in pool.map(fetch, items):
+                if rec is None:
+                    usage["failed"] += 1
+                    continue
+                usage["cached" if was_cached else "requests"] += 1
                 usage["input_tokens"] += int(rec["usage"].get("input_tokens", 0))
                 usage["output_tokens"] += int(rec["usage"].get("output_tokens", 0))
-            else:
-                if usage["input_tokens"] >= JEV_TOKEN_BUDGET:
-                    print("Token budget reached; stopping.")
-                    break
-                p, u, model = ask(session, key, state)
-                rec = {"p_home": p, "usage": u, "model": model}
-                path.write_text(json.dumps(rec))
-                usage["requests"] += 1
-                usage["input_tokens"] += int(u.get("input_tokens", 0))
-                usage["output_tokens"] += int(u.get("output_tokens", 0))
-            usage["models"].add(rec.get("model"))
-            out.append({"game_id": game_id, "p_home": rec["p_home"]})
+                usage["models"].add(rec.get("model"))
+                out.append({"game_id": game_id, "p_home": rec["p_home"]})
+        print(f"{variant}: {len(out)}/{len(items)} games answered")
 
         pred = games.merge(pd.DataFrame(out), on="game_id")
-        pred[["game_id", "date", "season", "home", "away", "home_win", "p_home"]] \
-            .to_csv(RESULTS_DIR / f"pred_jev_{variant}.csv", index=False)
+        suffix = "" if limit is None else "_partial"
+        pred[["game_id", "date", "season", "home", "away", "home_win", "p_home"]]             .to_csv(RESULTS_DIR / f"pred_jev_{variant}_{roster_mode}{suffix}.csv", index=False)
 
     usage["models"] = sorted(m for m in usage["models"] if m)
-    (RESULTS_DIR / "jev_usage.json").write_text(json.dumps(usage, indent=2))
-    print(f"Jev: {usage['requests']} new requests, {usage['input_tokens']:,} input tokens in total (cached included)")
+    usage["roster_mode"] = roster_mode
+    if limit is None:
+        (RESULTS_DIR / f"jev_usage_{roster_mode}.json").write_text(json.dumps(usage, indent=2))
+    print(f"Jev: {usage['requests']} new requests, {usage['cached']} cached, {usage['failed']} failed, "
+          f"{usage['input_tokens']:,} input tokens in total (cached included)")
     return usage
 
 
 if __name__ == "__main__":
-    run()
+    import sys
+    run(roster_mode=sys.argv[1] if len(sys.argv) > 1 else "previous",
+        limit=int(sys.argv[2]) if len(sys.argv) > 2 else None)
