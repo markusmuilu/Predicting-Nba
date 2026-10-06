@@ -56,6 +56,7 @@ def load_live_history():
     """Production's own day-of predictions and the odds stored with them."""
     h = pd.DataFrame(json.loads((RAW_DIR / "history_prediction_history.json").read_text()))
     h = h[~h.team.isin(["STARS", "STRIPES", "WORLD", "NO_GAMES_TODAY"])]
+    h = h[h["confidence"].notna()]  # early-season rows hold a result but no stored prediction
     conf = h["confidence"].astype(float) / 100
     h["p_live"] = np.where(h["prediction"].astype(bool), conf, 1 - conf)
     h = h.rename(columns={"team": "home", "opponent": "away"})
