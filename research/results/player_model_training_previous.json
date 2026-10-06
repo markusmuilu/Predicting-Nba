@@ -1,0 +1,333 @@
+{
+  "device": "cuda",
+  "chosen": {
+    "embed_dim": 16,
+    "hidden": 32,
+    "dropout": 0.3,
+    "weight_decay": 0.0001,
+    "antisymmetric": true
+  },
+  "temperature": 1.0122848749160767,
+  "seed_runs": [
+    {
+      "seed": 42,
+      "val_log_loss": 0.6024953722953796,
+      "best_epoch": 15
+    },
+    {
+      "seed": 43,
+      "val_log_loss": 0.6043980121612549,
+      "best_epoch": 6
+    },
+    {
+      "seed": 44,
+      "val_log_loss": 0.6067714691162109,
+      "best_epoch": 7
+    },
+    {
+      "seed": 45,
+      "val_log_loss": 0.6041669249534607,
+      "best_epoch": 9
+    },
+    {
+      "seed": 46,
+      "val_log_loss": 0.6049602627754211,
+      "best_epoch": 6
+    }
+  ],
+  "grid": [
+    {
+      "embed_dim": 16,
+      "hidden": 32,
+      "dropout": 0.3,
+      "weight_decay": 0.0001,
+      "antisymmetric": true,
+      "val_log_loss": 0.6024953722953796,
+      "best_epoch": 15
+    },
+    {
+      "embed_dim": 16,
+      "hidden": 32,
+      "dropout": 0.1,
+      "weight_decay": 0.0001,
+      "antisymmetric": true,
+      "val_log_loss": 0.6029019355773926,
+      "best_epoch": 10
+    },
+    {
+      "embed_dim": 16,
+      "hidden": 64,
+      "dropout": 0.1,
+      "weight_decay": 0.0001,
+      "antisymmetric": true,
+      "val_log_loss": 0.6029177308082581,
+      "best_epoch": 5
+    },
+    {
+      "embed_dim": 16,
+      "hidden": 64,
+      "dropout": 0.3,
+      "weight_decay": 0.0001,
+      "antisymmetric": true,
+      "val_log_loss": 0.6033927798271179,
+      "best_epoch": 5
+    },
+    {
+      "embed_dim": 32,
+      "hidden": 32,
+      "dropout": 0.1,
+      "weight_decay": 0.0001,
+      "antisymmetric": true,
+      "val_log_loss": 0.6034806966781616,
+      "best_epoch": 10
+    },
+    {
+      "embed_dim": 16,
+      "hidden": 32,
+      "dropout": 0.3,
+      "weight_decay": 0.001,
+      "antisymmetric": true,
+      "val_log_loss": 0.6036461591720581,
+      "best_epoch": 5
+    },
+    {
+      "embed_dim": 16,
+      "hidden": 32,
+      "dropout": 0.1,
+      "weight_decay": 0.001,
+      "antisymmetric": true,
+      "val_log_loss": 0.6036602854728699,
+      "best_epoch": 5
+    },
+    {
+      "embed_dim": 16,
+      "hidden": 64,
+      "dropout": 0.1,
+      "weight_decay": 0.001,
+      "antisymmetric": true,
+      "val_log_loss": 0.6038599014282227,
+      "best_epoch": 5
+    },
+    {
+      "embed_dim": 32,
+      "hidden": 64,
+      "dropout": 0.1,
+      "weight_decay": 0.0001,
+      "antisymmetric": false,
+      "val_log_loss": 0.603990375995636,
+      "best_epoch": 8
+    },
+    {
+      "embed_dim": 16,
+      "hidden": 64,
+      "dropout": 0.3,
+      "weight_decay": 0.001,
+      "antisymmetric": false,
+      "val_log_loss": 0.6041727662086487,
+      "best_epoch": 11
+    },
+    {
+      "embed_dim": 32,
+      "hidden": 64,
+      "dropout": 0.3,
+      "weight_decay": 0.001,
+      "antisymmetric": true,
+      "val_log_loss": 0.6042348146438599,
+      "best_epoch": 5
+    },
+    {
+      "embed_dim": 32,
+      "hidden": 32,
+      "dropout": 0.1,
+      "weight_decay": 0.001,
+      "antisymmetric": true,
+      "val_log_loss": 0.6042428612709045,
+      "best_epoch": 10
+    },
+    {
+      "embed_dim": 16,
+      "hidden": 64,
+      "dropout": 0.3,
+      "weight_decay": 0.001,
+      "antisymmetric": true,
+      "val_log_loss": 0.6042554378509521,
+      "best_epoch": 2
+    },
+    {
+      "embed_dim": 32,
+      "hidden": 64,
+      "dropout": 0.1,
+      "weight_decay": 0.001,
+      "antisymmetric": true,
+      "val_log_loss": 0.6044806241989136,
+      "best_epoch": 2
+    },
+    {
+      "embed_dim": 32,
+      "hidden": 64,
+      "dropout": 0.1,
+      "weight_decay": 0.0001,
+      "antisymmetric": true,
+      "val_log_loss": 0.6046349406242371,
+      "best_epoch": 3
+    },
+    {
+      "embed_dim": 32,
+      "hidden": 32,
+      "dropout": 0.3,
+      "weight_decay": 0.001,
+      "antisymmetric": true,
+      "val_log_loss": 0.6046673059463501,
+      "best_epoch": 10
+    },
+    {
+      "embed_dim": 32,
+      "hidden": 32,
+      "dropout": 0.3,
+      "weight_decay": 0.0001,
+      "antisymmetric": true,
+      "val_log_loss": 0.6046754717826843,
+      "best_epoch": 10
+    },
+    {
+      "embed_dim": 16,
+      "hidden": 64,
+      "dropout": 0.1,
+      "weight_decay": 0.0001,
+      "antisymmetric": false,
+      "val_log_loss": 0.6046940684318542,
+      "best_epoch": 8
+    },
+    {
+      "embed_dim": 32,
+      "hidden": 64,
+      "dropout": 0.3,
+      "weight_decay": 0.0001,
+      "antisymmetric": false,
+      "val_log_loss": 0.6046955585479736,
+      "best_epoch": 7
+    },
+    {
+      "embed_dim": 32,
+      "hidden": 64,
+      "dropout": 0.3,
+      "weight_decay": 0.001,
+      "antisymmetric": false,
+      "val_log_loss": 0.6048042178153992,
+      "best_epoch": 11
+    },
+    {
+      "embed_dim": 16,
+      "hidden": 32,
+      "dropout": 0.3,
+      "weight_decay": 0.0001,
+      "antisymmetric": false,
+      "val_log_loss": 0.6048212051391602,
+      "best_epoch": 11
+    },
+    {
+      "embed_dim": 16,
+      "hidden": 32,
+      "dropout": 0.1,
+      "weight_decay": 0.0001,
+      "antisymmetric": false,
+      "val_log_loss": 0.604851245880127,
+      "best_epoch": 11
+    },
+    {
+      "embed_dim": 32,
+      "hidden": 64,
+      "dropout": 0.3,
+      "weight_decay": 0.0001,
+      "antisymmetric": true,
+      "val_log_loss": 0.6048569083213806,
+      "best_epoch": 3
+    },
+    {
+      "embed_dim": 16,
+      "hidden": 64,
+      "dropout": 0.3,
+      "weight_decay": 0.0001,
+      "antisymmetric": false,
+      "val_log_loss": 0.6048732399940491,
+      "best_epoch": 11
+    },
+    {
+      "embed_dim": 32,
+      "hidden": 64,
+      "dropout": 0.1,
+      "weight_decay": 0.001,
+      "antisymmetric": false,
+      "val_log_loss": 0.6049724221229553,
+      "best_epoch": 11
+    },
+    {
+      "embed_dim": 32,
+      "hidden": 32,
+      "dropout": 0.1,
+      "weight_decay": 0.001,
+      "antisymmetric": false,
+      "val_log_loss": 0.6049845814704895,
+      "best_epoch": 11
+    },
+    {
+      "embed_dim": 32,
+      "hidden": 32,
+      "dropout": 0.3,
+      "weight_decay": 0.0001,
+      "antisymmetric": false,
+      "val_log_loss": 0.6049954295158386,
+      "best_epoch": 11
+    },
+    {
+      "embed_dim": 16,
+      "hidden": 64,
+      "dropout": 0.1,
+      "weight_decay": 0.001,
+      "antisymmetric": false,
+      "val_log_loss": 0.6050189733505249,
+      "best_epoch": 8
+    },
+    {
+      "embed_dim": 16,
+      "hidden": 32,
+      "dropout": 0.3,
+      "weight_decay": 0.001,
+      "antisymmetric": false,
+      "val_log_loss": 0.6051756739616394,
+      "best_epoch": 11
+    },
+    {
+      "embed_dim": 32,
+      "hidden": 32,
+      "dropout": 0.3,
+      "weight_decay": 0.001,
+      "antisymmetric": false,
+      "val_log_loss": 0.6052295565605164,
+      "best_epoch": 15
+    },
+    {
+      "embed_dim": 16,
+      "hidden": 32,
+      "dropout": 0.1,
+      "weight_decay": 0.001,
+      "antisymmetric": false,
+      "val_log_loss": 0.6053189039230347,
+      "best_epoch": 5
+    },
+    {
+      "embed_dim": 32,
+      "hidden": 32,
+      "dropout": 0.1,
+      "weight_decay": 0.0001,
+      "antisymmetric": false,
+      "val_log_loss": 0.6054658889770508,
+      "best_epoch": 11
+    }
+  ],
+  "player_logreg": {
+    "C": 0.01,
+    "val_log_loss": 0.6035544446361687
+  },
+  "n_parameters": 3090
+}

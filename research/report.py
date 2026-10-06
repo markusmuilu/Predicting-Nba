@@ -1,0 +1,197 @@
+"""
+Scores every model's predictions with the shared harness and writes the
+results table, the plots, and a JSON file the dashboard reads.
+
+Fairness rule: all models are compared on the *same games*. The production
+cleaner drops each team's first game of a season (no rolling average exists
+yet), so the logistic regression has slightly fewer games than the player
+model; the comparison uses the games every model has.
+
+Two reference rows that are not models trained here:
+- market: Pinnacle's price de-vigged, on the games where the production
+  pipeline recorded odds (from 7 Jan 2026 on). Prices were captured at the
+  daily 12:00 Helsinki run, i.e. hours before tip-off, so they are not closing
+  lines; closing lines would be sharper still.
+- production (live): what the deployed service actually predicted on the day,
+  from history/prediction_history.json. Four model versions over the season.
+"""
+
+import json
+
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+from research.config import RAW_DIR, RESULTS_DIR, TEST_SEASON, VAL_SEASON
+from research.evaluate import (betting_metrics, classification_metrics, confidence_buckets, devig,
+                               plot_calibration)
+
+MODELS = {
+    "logreg": ("Logistic regression (production features)", "pred_logreg.csv"),
+    "player_model": ("Player model, actual roster (optimistic)", "pred_player_model.csv"),
+    "player_logreg": ("Ablation: logreg on player features, actual roster", "pred_player_logreg.csv"),
+    "player_model_prev": ("Player model, previous-game roster", "pred_player_model_previous.csv"),
+    "player_logreg_prev": ("Ablation: logreg on player features, previous-game roster", "pred_player_logreg_previous.csv"),
+    "jev_named": ("Jev, named", "pred_jev_named.csv"),
+    "jev_anonymised": ("Jev, anonymised", "pred_jev_anonymised.csv"),
+}
+KEY = ["date", "home", "away"]
+
+
+def load_predictions():
+    preds = {}
+    for key, (_, fname) in MODELS.items():
+        path = RESULTS_DIR / fname
+        if not path.exists():
+            continue
+        df = pd.read_csv(path).rename(columns={"Date": "date"})
+        preds[key] = df[KEY + ["season", "home_win", "p_home"]]
+    return preds
+
+
+def load_live_history():
+    """Production's own day-of predictions and the odds stored with them."""
+    h = pd.DataFrame(json.loads((RAW_DIR / "history_prediction_history.json").read_text()))
+    h = h[~h.team.isin(["STARS", "STRIPES", "WORLD", "NO_GAMES_TODAY"])]
+    conf = h["confidence"].astype(float) / 100
+    h["p_live"] = np.where(h["prediction"].astype(bool), conf, 1 - conf)
+    h = h.rename(columns={"team": "home", "opponent": "away"})
+    return h[KEY + ["p_live", "home_odds", "away_odds"]].drop_duplicates(KEY)
+
+
+def common_games(preds, season):
+    """Inner join of every model's games for one season, one p_<model> column each."""
+    base = None
+    for key, df in preds.items():
+        part = df[df.season == season][KEY + ["home_win", "p_home"]].rename(columns={"p_home": f"p_{key}"})
+        base = part if base is None else base.merge(part.drop(columns="home_win"), on=KEY)
+    return base.sort_values(KEY).reset_index(drop=True)
+
+
+def paired_bootstrap(y, p_base, p_new, n_boot=2000, seed=0):
+    """
+    Per-game log loss of the baseline minus the new model, resampled over games.
+    Positive = new model is better. Returns the mean difference and a 95% interval.
+    Games are resampled, not seasons, so this captures sampling noise on ~1,200 games
+    and nothing else (not seed noise, not the choice of season).
+    """
+    y = np.asarray(y, float)
+    def ll(p):
+        p = np.clip(np.asarray(p, float), 1e-12, 1 - 1e-12)
+        return -(y * np.log(p) + (1 - y) * np.log(1 - p))
+    d = ll(p_base) - ll(p_new)
+    rng = np.random.default_rng(seed)
+    means = [d[rng.integers(0, len(d), len(d))].mean() for _ in range(n_boot)]
+    lo, hi = np.percentile(means, [2.5, 97.5])
+    return {"mean_diff": float(d.mean()), "ci_low": float(lo), "ci_high": float(hi)}
+
+
+def plot_bankroll(curves, path):
+    fig, ax = plt.subplots(figsize=(7, 4))
+    for label, series in curves.items():
+        ax.plot(range(1, len(series) + 1), series, lw=1.6, label=label)
+    ax.axhline(1.0, color="#9ca3af", lw=1, ls="--")
+    ax.set_xlabel("Games with odds, in date order (test season)")
+    ax.set_ylabel("Bankroll (start = 1)")
+    ax.set_title("Quarter-Kelly on positive-EV bets")
+    ax.legend(fontsize=8, frameon=False)
+    ax.grid(alpha=0.25)
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+
+
+def run():
+    preds = load_predictions()
+    live = load_live_history()
+    names = {k: MODELS[k][0] for k in preds}
+    out = {"models": names, "splits": {}}
+
+    for season, label in [(VAL_SEASON, "validation"), (TEST_SEASON, "test")]:
+        games = common_games(preds, season)
+        y = games.home_win.to_numpy()
+        split = {"season": season, "n_games": len(games),
+                 "home_win_rate": float(y.mean()), "metrics": {}, "buckets": {}}
+        for k in preds:
+            split["metrics"][k] = classification_metrics(y, games[f"p_{k}"])
+            split["buckets"][k] = confidence_buckets(y, games[f"p_{k}"])
+        split["paired_vs_logreg"] = {k: paired_bootstrap(y, games["p_logreg"], games[f"p_{k}"])
+                                     for k in preds if k != "logreg"}
+        split["metrics"]["always_home"] = classification_metrics(y, np.full(len(y), y.mean()))
+
+        plot_calibration({names[k]: (y, games[f"p_{k}"].to_numpy()) for k in preds},
+                         RESULTS_DIR / f"calibration_{label}.png",
+                         f"Calibration, {label} season {season} ({len(games)} games)")
+
+        if season == TEST_SEASON:
+            g = games.merge(live, on=KEY, how="left")
+            has_live = g.p_live.notna()
+            split["live_production"] = {
+                "n_matched": int(has_live.sum()),
+                "production_live": classification_metrics(g.home_win[has_live], g.p_live[has_live]),
+                **{k: classification_metrics(g.home_win[has_live], g[f"p_{k}"][has_live]) for k in preds},
+            }
+
+            odds = g[g.home_odds.notna() & g.away_odds.notna()].reset_index(drop=True)
+            yo = odds.home_win.to_numpy()
+            market = devig(odds.home_odds, odds.away_odds)
+            odds_block = {"n_games": len(odds), "first_date": odds.date.min(), "last_date": odds.date.max(),
+                          "market": classification_metrics(yo, market), "models": {}, "betting": {}}
+            curves = {}
+            for k in preds:
+                odds_block["models"][k] = classification_metrics(yo, odds[f"p_{k}"])
+                bm = betting_metrics(yo, odds[f"p_{k}"], odds.home_odds, odds.away_odds)
+                curves[names[k]] = bm["quarter_kelly_path"]
+                odds_block["betting"][k] = {kk: v for kk, v in bm.items() if not isinstance(v, list)}
+            split["odds"] = odds_block
+            plot_bankroll(curves, RESULTS_DIR / "bankroll_test.png")
+
+            # Per-game test predictions for the dashboard's comparison view.
+            g["p_market"] = np.where(g.home_odds.notna(), devig(g.home_odds.fillna(2), g.away_odds.fillna(2)), np.nan)
+            cols = KEY + ["home_win"] + [f"p_{k}" for k in preds] + ["p_live", "p_market"]
+            out["test_games"] = json.loads(g[cols].round(4).to_json(orient="records"))
+
+        out["splits"][label] = split
+
+    (RESULTS_DIR / "metrics.json").write_text(json.dumps(out, indent=2, default=float))
+    write_table(out)
+    return out
+
+
+def write_table(out):
+    lines = []
+    for label, split in out["splits"].items():
+        lines.append(f"\n### {label.capitalize()}: {split['season']}, {split['n_games']} games "
+                     f"(home win rate {split['home_win_rate']:.3f})\n")
+        lines.append("| Model | Accuracy | Brier | Log loss | ECE |")
+        lines.append("|---|---|---|---|---|")
+        for k, m in split["metrics"].items():
+            name = out["models"].get(k, "Constant: home win rate")
+            lines.append(f"| {name} | {m['accuracy']:.3f} | {m['brier']:.4f} | {m['log_loss']:.4f} | {m['ece']:.3f} |")
+        if "odds" in split:
+            o = split["odds"]
+            lines.append(f"\n**Games with recorded Pinnacle odds:** {o['n_games']} ({o['first_date']} to {o['last_date']})\n")
+            lines.append("| Model | Accuracy | Brier | Log loss | Flat ROI, back pick | +EV bets | Flat ROI, +EV | 1/4 Kelly final | 1/4 Kelly max DD | 1/2 Kelly final |")
+            lines.append("|---|---|---|---|---|---|---|---|---|---|")
+            m = o["market"]
+            lines.append(f"| Market (de-vigged) | {m['accuracy']:.3f} | {m['brier']:.4f} | {m['log_loss']:.4f} | | | | | | |")
+            for k, m in o["models"].items():
+                b = o["betting"][k]
+                lines.append(f"| {out['models'][k]} | {m['accuracy']:.3f} | {m['brier']:.4f} | {m['log_loss']:.4f} | "
+                             f"{b['flat_winner_roi']:+.3f} | {b['flat_ev_bets']} | {b['flat_ev_roi']:+.3f} | "
+                             f"{b['quarter_kelly_final']:.3f} | {b['quarter_kelly_max_drawdown']:.3f} | {b['half_kelly_final']:.3f} |")
+    for label, split in out["splits"].items():
+        lines.append(f"\n**{label.capitalize()}: log loss improvement over production logreg, paired bootstrap 95% CI** (positive = better)\n")
+        lines.append("| Model | Mean | 95% CI |")
+        lines.append("|---|---|---|")
+        for k, b in split["paired_vs_logreg"].items():
+            lines.append(f"| {out['models'][k]} | {b['mean_diff']:+.4f} | [{b['ci_low']:+.4f}, {b['ci_high']:+.4f}] |")
+    (RESULTS_DIR / "results_table.md").write_text("\n".join(lines) + "\n")
+    print("\n".join(lines))
+
+
+if __name__ == "__main__":
+    run()

@@ -1,0 +1,4 @@
+# Research code only. Kept out of the root requirements.txt because the Docker image installs that one.
+-r ../requirements.txt
+torch
+nba_api
