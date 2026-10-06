@@ -53,6 +53,7 @@ def test_only_pregame_events_are_due():
 def isolated(tmp_path, monkeypatch):
     monkeypatch.setattr(L, "LIVE_DIR", tmp_path / "live")
     monkeypatch.setattr(L, "ROOT", tmp_path)
+    monkeypatch.setattr(L.time, "sleep", lambda s: None)     # the PDF probe throttles; tests do not need to wait
     return tmp_path
 
 

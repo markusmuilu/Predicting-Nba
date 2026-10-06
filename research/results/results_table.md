@@ -26,6 +26,9 @@
 | Deep Sets, hand features + raw sequences, 12 seasons, actual roster (optimistic) | 0.701 | 0.2013 | 0.5878 | 0.031 |
 | Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars | 0.698 | 0.2021 | 0.5892 | 0.025 |
 | Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, + league context | 0.685 | 0.2023 | 0.5891 | 0.022 |
+| Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on margin only | 0.692 | 0.2032 | 0.5913 | 0.027 |
+| Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on win + margin | 0.685 | 0.2029 | 0.5910 | 0.018 |
+| Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on win + margin + total points | 0.687 | 0.2024 | 0.5897 | 0.033 |
 | Deep Sets, hand features + raw sequences, 12 seasons, + rating scalars | 0.687 | 0.2029 | 0.5910 | 0.018 |
 | Deep Sets, hand features + raw sequences, 12 seasons, + rating scalars, actual roster (optimistic) | 0.693 | 0.1987 | 0.5813 | 0.017 |
 | Deep Sets, hand features + raw sequences, 4 seasons | 0.680 | 0.2084 | 0.6040 | 0.034 |
@@ -34,6 +37,9 @@
 | Deep Sets, hand-built features, 12 seasons, actual roster (optimistic) | 0.684 | 0.2023 | 0.5901 | 0.028 |
 | Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings | 0.690 | 0.2027 | 0.5909 | 0.033 |
 | Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings, + rating scalars | 0.689 | 0.2033 | 0.5921 | 0.036 |
+| Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on margin only | 0.679 | 0.2035 | 0.5923 | 0.016 |
+| Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on win + margin | 0.691 | 0.2039 | 0.5932 | 0.034 |
+| Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on win + margin + total points | 0.684 | 0.2033 | 0.5919 | 0.020 |
 | Deep Sets, hand-built features, 12 seasons, + rating scalars | 0.683 | 0.2037 | 0.5934 | 0.025 |
 | Deep Sets, hand-built features, 12 seasons, + rating scalars, actual roster (optimistic) | 0.694 | 0.1996 | 0.5825 | 0.026 |
 | Deep Sets, hand-built features, 12 seasons, + rating scalars, + league context | 0.682 | 0.2035 | 0.5924 | 0.018 |
@@ -81,6 +87,9 @@
 | Deep Sets, hand features + raw sequences, 12 seasons, actual roster (optimistic) | 0.691 | 0.2000 | 0.5831 | 0.019 |
 | Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars | 0.692 | 0.1995 | 0.5821 | 0.016 |
 | Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, + league context | 0.695 | 0.2008 | 0.5853 | 0.028 |
+| Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on margin only | 0.695 | 0.2001 | 0.5835 | 0.024 |
+| Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on win + margin | 0.694 | 0.1990 | 0.5812 | 0.022 |
+| Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on win + margin + total points | 0.690 | 0.2002 | 0.5840 | 0.021 |
 | Deep Sets, hand features + raw sequences, 12 seasons, + rating scalars | 0.688 | 0.1999 | 0.5829 | 0.022 |
 | Deep Sets, hand features + raw sequences, 12 seasons, + rating scalars, actual roster (optimistic) | 0.705 | 0.1964 | 0.5751 | 0.026 |
 | Deep Sets, hand features + raw sequences, 4 seasons | 0.677 | 0.2061 | 0.5973 | 0.034 |
@@ -89,6 +98,9 @@
 | Deep Sets, hand-built features, 12 seasons, actual roster (optimistic) | 0.686 | 0.2002 | 0.5833 | 0.022 |
 | Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings | 0.691 | 0.2017 | 0.5872 | 0.027 |
 | Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings, + rating scalars | 0.685 | 0.2013 | 0.5865 | 0.017 |
+| Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on margin only | 0.687 | 0.2010 | 0.5852 | 0.021 |
+| Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on win + margin | 0.684 | 0.2017 | 0.5874 | 0.023 |
+| Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on win + margin + total points | 0.684 | 0.2022 | 0.5886 | 0.026 |
 | Deep Sets, hand-built features, 12 seasons, + rating scalars | 0.691 | 0.2016 | 0.5868 | 0.020 |
 | Deep Sets, hand-built features, 12 seasons, + rating scalars, actual roster (optimistic) | 0.691 | 0.1966 | 0.5754 | 0.028 |
 | Deep Sets, hand-built features, 12 seasons, + rating scalars, + league context | 0.675 | 0.2016 | 0.5866 | 0.023 |
@@ -137,6 +149,9 @@
 | Deep Sets, hand features + raw sequences, 12 seasons, actual roster (optimistic) | 0.712 | 0.1873 | 0.5531 | +0.012 | 576 | -0.033 | 0.916 | 0.806 | 0.225 |
 | Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars | 0.713 | 0.1879 | 0.5549 | +0.011 | 548 | -0.058 | 0.484 | 0.866 | 0.079 |
 | Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, + league context | 0.728 | 0.1887 | 0.5570 | +0.045 | 547 | -0.054 | 0.527 | 0.888 | 0.073 |
+| Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on margin only | 0.719 | 0.1880 | 0.5551 | +0.020 | 549 | -0.093 | 0.594 | 0.871 | 0.123 |
+| Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on win + margin | 0.722 | 0.1868 | 0.5529 | +0.025 | 524 | -0.075 | 0.558 | 0.845 | 0.122 |
+| Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on win + margin + total points | 0.710 | 0.1877 | 0.5547 | +0.007 | 556 | -0.056 | 0.574 | 0.865 | 0.104 |
 | Deep Sets, hand features + raw sequences, 12 seasons, + rating scalars | 0.703 | 0.1878 | 0.5548 | -0.006 | 530 | -0.089 | 0.584 | 0.865 | 0.108 |
 | Deep Sets, hand features + raw sequences, 12 seasons, + rating scalars, actual roster (optimistic) | 0.719 | 0.1832 | 0.5435 | +0.014 | 530 | -0.020 | 2.136 | 0.681 | 1.971 |
 | Deep Sets, hand features + raw sequences, 4 seasons | 0.701 | 0.1936 | 0.5694 | +0.014 | 613 | -0.106 | 0.185 | 0.954 | 0.005 |
@@ -145,6 +160,9 @@
 | Deep Sets, hand-built features, 12 seasons, actual roster (optimistic) | 0.706 | 0.1878 | 0.5542 | +0.005 | 579 | -0.038 | 0.741 | 0.780 | 0.161 |
 | Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings | 0.718 | 0.1900 | 0.5600 | +0.022 | 560 | -0.067 | 0.214 | 0.921 | 0.015 |
 | Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings, + rating scalars | 0.703 | 0.1894 | 0.5587 | -0.010 | 566 | -0.095 | 0.272 | 0.902 | 0.025 |
+| Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on margin only | 0.709 | 0.1895 | 0.5586 | +0.002 | 552 | -0.071 | 0.258 | 0.894 | 0.025 |
+| Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on win + margin | 0.709 | 0.1899 | 0.5603 | -0.000 | 552 | -0.125 | 0.217 | 0.917 | 0.017 |
+| Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on win + margin + total points | 0.709 | 0.1903 | 0.5611 | +0.002 | 541 | -0.122 | 0.190 | 0.929 | 0.013 |
 | Deep Sets, hand-built features, 12 seasons, + rating scalars | 0.715 | 0.1896 | 0.5590 | +0.020 | 558 | -0.075 | 0.268 | 0.899 | 0.025 |
 | Deep Sets, hand-built features, 12 seasons, + rating scalars, actual roster (optimistic) | 0.718 | 0.1833 | 0.5441 | +0.010 | 527 | -0.031 | 1.839 | 0.568 | 1.641 |
 | Deep Sets, hand-built features, 12 seasons, + rating scalars, + league context | 0.701 | 0.1887 | 0.5569 | -0.014 | 564 | -0.075 | 0.362 | 0.868 | 0.049 |
@@ -190,6 +208,9 @@
 | Deep Sets, hand features + raw sequences, 12 seasons, actual roster (optimistic) | +0.0199 | [+0.0048, +0.0357] |
 | Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars | +0.0185 | [+0.0058, +0.0311] |
 | Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, + league context | +0.0186 | [+0.0052, +0.0324] |
+| Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on margin only | +0.0164 | [+0.0037, +0.0288] |
+| Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on win + margin | +0.0167 | [+0.0049, +0.0282] |
+| Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on win + margin + total points | +0.0180 | [+0.0053, +0.0304] |
 | Deep Sets, hand features + raw sequences, 12 seasons, + rating scalars | +0.0167 | [+0.0042, +0.0298] |
 | Deep Sets, hand features + raw sequences, 12 seasons, + rating scalars, actual roster (optimistic) | +0.0264 | [+0.0117, +0.0415] |
 | Deep Sets, hand features + raw sequences, 4 seasons | +0.0037 | [-0.0104, +0.0174] |
@@ -198,6 +219,9 @@
 | Deep Sets, hand-built features, 12 seasons, actual roster (optimistic) | +0.0176 | [+0.0033, +0.0321] |
 | Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings | +0.0168 | [+0.0043, +0.0292] |
 | Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings, + rating scalars | +0.0156 | [+0.0031, +0.0275] |
+| Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on margin only | +0.0154 | [+0.0033, +0.0274] |
+| Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on win + margin | +0.0145 | [+0.0026, +0.0259] |
+| Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on win + margin + total points | +0.0158 | [+0.0035, +0.0278] |
 | Deep Sets, hand-built features, 12 seasons, + rating scalars | +0.0143 | [+0.0025, +0.0265] |
 | Deep Sets, hand-built features, 12 seasons, + rating scalars, actual roster (optimistic) | +0.0252 | [+0.0117, +0.0391] |
 | Deep Sets, hand-built features, 12 seasons, + rating scalars, + league context | +0.0153 | [+0.0031, +0.0274] |
@@ -243,6 +267,9 @@
 | Deep Sets, hand features + raw sequences, 12 seasons, actual roster (optimistic) | +0.0226 | [+0.0067, +0.0380] |
 | Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars | +0.0236 | [+0.0097, +0.0372] |
 | Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, + league context | +0.0205 | [+0.0056, +0.0348] |
+| Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on margin only | +0.0222 | [+0.0078, +0.0356] |
+| Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on win + margin | +0.0245 | [+0.0120, +0.0370] |
+| Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on win + margin + total points | +0.0217 | [+0.0076, +0.0354] |
 | Deep Sets, hand features + raw sequences, 12 seasons, + rating scalars | +0.0228 | [+0.0091, +0.0362] |
 | Deep Sets, hand features + raw sequences, 12 seasons, + rating scalars, actual roster (optimistic) | +0.0306 | [+0.0160, +0.0454] |
 | Deep Sets, hand features + raw sequences, 4 seasons | +0.0085 | [-0.0055, +0.0225] |
@@ -251,6 +278,9 @@
 | Deep Sets, hand-built features, 12 seasons, actual roster (optimistic) | +0.0225 | [+0.0079, +0.0370] |
 | Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings | +0.0185 | [+0.0052, +0.0318] |
 | Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings, + rating scalars | +0.0192 | [+0.0059, +0.0321] |
+| Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on margin only | +0.0206 | [+0.0072, +0.0341] |
+| Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on win + margin | +0.0184 | [+0.0055, +0.0313] |
+| Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on win + margin + total points | +0.0172 | [+0.0039, +0.0308] |
 | Deep Sets, hand-built features, 12 seasons, + rating scalars | +0.0189 | [+0.0054, +0.0318] |
 | Deep Sets, hand-built features, 12 seasons, + rating scalars, actual roster (optimistic) | +0.0303 | [+0.0164, +0.0440] |
 | Deep Sets, hand-built features, 12 seasons, + rating scalars, + league context | +0.0192 | [+0.0063, +0.0315] |
@@ -296,6 +326,9 @@
 | Deep Sets, hand features + raw sequences, 12 seasons, actual roster (optimistic) | +0.0083 | [-0.0038, +0.0212] |
 | Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars | +0.0070 | [+0.0005, +0.0131] |
 | Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, + league context | +0.0071 | [-0.0007, +0.0146] |
+| Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on margin only | +0.0048 | [-0.0009, +0.0107] |
+| Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on win + margin | +0.0052 | [-0.0004, +0.0110] |
+| Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on win + margin + total points | +0.0064 | [-0.0001, +0.0130] |
 | Deep Sets, hand features + raw sequences, 12 seasons, + rating scalars | +0.0052 | [-0.0019, +0.0120] |
 | Deep Sets, hand features + raw sequences, 12 seasons, + rating scalars, actual roster (optimistic) | +0.0149 | [+0.0042, +0.0260] |
 | Deep Sets, hand features + raw sequences, 4 seasons | -0.0078 | [-0.0184, +0.0024] |
@@ -304,6 +337,9 @@
 | Deep Sets, hand-built features, 12 seasons, actual roster (optimistic) | +0.0061 | [-0.0059, +0.0184] |
 | Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings | +0.0053 | [-0.0006, +0.0113] |
 | Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings, + rating scalars | +0.0041 | [-0.0019, +0.0096] |
+| Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on margin only | +0.0038 | [-0.0016, +0.0093] |
+| Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on win + margin | +0.0030 | [-0.0015, +0.0077] |
+| Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on win + margin + total points | +0.0042 | [-0.0009, +0.0097] |
 | Deep Sets, hand-built features, 12 seasons, + rating scalars | +0.0028 | [-0.0034, +0.0084] |
 | Deep Sets, hand-built features, 12 seasons, + rating scalars, actual roster (optimistic) | +0.0137 | [+0.0039, +0.0238] |
 | Deep Sets, hand-built features, 12 seasons, + rating scalars, + league context | +0.0037 | [-0.0026, +0.0097] |
@@ -349,6 +385,9 @@
 | Deep Sets, hand features + raw sequences, 12 seasons, actual roster (optimistic) | +0.0066 | [-0.0061, +0.0181] |
 | Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars | +0.0076 | [+0.0010, +0.0138] |
 | Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, + league context | +0.0045 | [-0.0032, +0.0121] |
+| Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on margin only | +0.0062 | [-0.0004, +0.0122] |
+| Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on win + margin | +0.0086 | [+0.0030, +0.0138] |
+| Deep Sets, hand features + raw sequences, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on win + margin + total points | +0.0057 | [-0.0014, +0.0125] |
 | Deep Sets, hand features + raw sequences, 12 seasons, + rating scalars | +0.0068 | [-0.0003, +0.0129] |
 | Deep Sets, hand features + raw sequences, 12 seasons, + rating scalars, actual roster (optimistic) | +0.0146 | [+0.0039, +0.0245] |
 | Deep Sets, hand features + raw sequences, 4 seasons | -0.0075 | [-0.0170, +0.0021] |
@@ -357,6 +396,9 @@
 | Deep Sets, hand-built features, 12 seasons, actual roster (optimistic) | +0.0065 | [-0.0050, +0.0171] |
 | Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings | +0.0025 | [-0.0041, +0.0083] |
 | Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings, + rating scalars | +0.0032 | [-0.0028, +0.0086] |
+| Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on margin only | +0.0046 | [-0.0007, +0.0096] |
+| Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on win + margin | +0.0024 | [-0.0023, +0.0070] |
+| Deep Sets, hand-built features, 12 seasons, + per-player Elo/ridge ratings, + rating scalars, trained on win + margin + total points | +0.0012 | [-0.0044, +0.0065] |
 | Deep Sets, hand-built features, 12 seasons, + rating scalars | +0.0029 | [-0.0031, +0.0083] |
 | Deep Sets, hand-built features, 12 seasons, + rating scalars, actual roster (optimistic) | +0.0143 | [+0.0044, +0.0232] |
 | Deep Sets, hand-built features, 12 seasons, + rating scalars, + league context | +0.0032 | [-0.0027, +0.0088] |

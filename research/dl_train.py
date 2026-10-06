@@ -12,6 +12,12 @@ One network family, several switches, so that each experiment changes one thing:
   pr        each player's own pre-game ratings (player Elo and ridge coefficient) appended to his
             hand-built features, so the network can learn how far to trust a rating given the rest of the
             player's recent form
+  target    what the network is trained to predict:
+            "win"     win or loss only (everything before this switch existed)
+            "margin"  the point margin only; the win probability is Phi(predicted margin / sigma), sigma = spread
+                      of the training residuals
+            "wm"      win AND margin: the win head is the prediction, the margin head is extra supervision
+            "wmt"     win, margin and total points (the margin and total together are both teams' scores)
   trend     what lets the model see *time*, only through the home-court term:
             "none" | "year" (season start year, standardised) | "league" (league points per game
             and home win rate so far this season) | recency weights on the training games
@@ -40,7 +46,7 @@ MAX_EPOCHS, PATIENCE, BATCH = 200, 15, 256
 
 
 class SetsNet(nn.Module):
-    def __init__(self, encoder, n_hf, n_ch, n_ctx, n_wide, n_trend, embed=16, hidden=32, gru_hidden=32, dropout=0.1):
+    def __init__(self, encoder, n_hf, n_ch, n_ctx, n_wide, n_trend, embed=16, hidden=32, gru_hidden=32, dropout=0.1, aux=False):
         super().__init__()
         self.encoder = encoder
         d = 0
@@ -55,6 +61,12 @@ class SetsNet(nn.Module):
         self.wide = nn.Linear(n_wide, 1, bias=False) if n_wide else None
         self.trend = nn.Linear(n_trend, 1) if n_trend else None
         self.home = nn.Parameter(torch.zeros(1))
+        self.aux = None
+        if aux:                                   # created after everything else: win-only runs are unchanged
+            self.aux = nn.Linear(hidden, 2)       # margin and total, read from the same hidden layer as the win score
+            self.wide_m = nn.Linear(n_wide, 1, bias=False) if n_wide else None
+            self.home_m = nn.Parameter(torch.zeros(1))
+            self.total_b = nn.Parameter(torch.zeros(1))
 
     def players(self, hf, seq):
         B, S, P = hf.shape[:3]
@@ -66,19 +78,29 @@ class SetsNet(nn.Module):
             parts.append(self.gru_out(h[-1]).reshape(B, S, P, -1))
         return torch.cat(parts, dim=-1)
 
-    def forward(self, hf, seq, exp, ctx, wide, trend):
+    def forward(self, hf, seq, exp, ctx, wide, trend, full=False):
         z = self.players(hf, seq)                                  # [B, 2, P, d]
         w = exp / exp.sum(2, keepdim=True).clamp(min=1e-6)         # expected-minutes weights, 0 for empty slots
         team = (z * w.unsqueeze(-1)).sum(2)                        # [B, 2, d]
         a, b = team[:, 0], team[:, 1]
-        s_ab = self.head(torch.cat([a, b, a - b, ctx[:, 0], ctx[:, 1]], -1)).squeeze(-1)
-        s_ba = self.head(torch.cat([b, a, b - a, ctx[:, 1], ctx[:, 0]], -1)).squeeze(-1)
+        x_ab = torch.cat([a, b, a - b, ctx[:, 0], ctx[:, 1]], -1)
+        x_ba = torch.cat([b, a, b - a, ctx[:, 1], ctx[:, 0]], -1)
+        h_ab, h_ba = self.head[:3](x_ab), self.head[:3](x_ba)
+        s_ab, s_ba = self.head[3](h_ab).squeeze(-1), self.head[3](h_ba).squeeze(-1)
         logit = s_ab - s_ba + self.home
         if self.wide is not None:
             logit = logit + self.wide(wide).squeeze(-1)
         if self.trend is not None:
             logit = logit + self.trend(trend).squeeze(-1)
-        return logit
+        if not full:
+            return logit
+        # Margin is antisymmetric (swap the teams and it flips sign), total points is symmetric.
+        o_ab, o_ba = self.aux(h_ab), self.aux(h_ba)
+        margin = o_ab[:, 0] - o_ba[:, 0] + self.home_m
+        if self.wide_m is not None:
+            margin = margin + self.wide_m(wide).squeeze(-1)
+        total = o_ab[:, 1] + o_ba[:, 1] + self.total_b
+        return logit, margin, total
 
 
 def set_seed(seed):
@@ -127,6 +149,11 @@ class Data:
         self.trend_all = {"none": None, "year": torch.tensor(yr[:, None].astype(np.float32)).to(DEVICE),
                           "league": torch.tensor(np.stack([ppg, hw], 1).astype(np.float32)).to(DEVICE)}
         self.sstart = sstart
+        # Margin in units of 12 points; total points relative to the league's running average (point-in-time),
+        # so the changing scoring level of different eras is not mistaken for signal.
+        self.ms = torch.tensor(((g.PTS_home - g.PTS_away) / 12.0).to_numpy(np.float32)).to(DEVICE)
+        dev = (g.PTS_home + g.PTS_away) - 2 * g.league_ppg
+        self.tz = torch.tensor((dev / dev[train_ref].std()).to_numpy(np.float32)).to(DEVICE)
         self.val = (g.season == VAL_SEASON).to_numpy()
         self.test = (g.season == TEST_SEASON).to_numpy()
 
@@ -147,7 +174,13 @@ def predict(model, D, idx):
     out = []
     with torch.no_grad():
         for part in torch.split(torch.as_tensor(idx, device=DEVICE), 1024):
-            out.append(model(*batch(D, part, model.wide is not None, model.trend_name, model.pr_on)))
+            args = batch(D, part, model.wide is not None, model.trend_name, model.pr_on)
+            if model.target == "margin":
+                margin = model(*args, full=True)[1]
+                p = torch.special.ndtr(margin / model.sigma_z).clamp(1e-6, 1 - 1e-6)
+                out.append(torch.log(p / (1 - p)))
+            else:
+                out.append(model(*args))
     return torch.cat(out)
 
 
@@ -156,9 +189,13 @@ def train_one(D, cfg, seed):
     set_seed(seed)
     wide_on, trend, pr_on = cfg.get("wide", False), cfg.get("trend", "none"), cfg.get("pr", False)
     n_trend = 0 if trend == "none" else D.trend_all[trend].shape[1]
+    target = cfg.get("target", "win")
     model = SetsNet(cfg["encoder"], D.hf.shape[-1] + (D.pr.shape[-1] if pr_on else 0), D.seq.shape[-1], D.ctx.shape[-1], 3 if wide_on else 0, n_trend,
-                    cfg.get("embed", 16), cfg.get("hidden", 32), cfg.get("gru_hidden", 32), cfg.get("dropout", 0.1)).to(DEVICE)
-    model.trend_name, model.pr_on = trend, pr_on
+                    cfg.get("embed", 16), cfg.get("hidden", 32), cfg.get("gru_hidden", 32), cfg.get("dropout", 0.1),
+                    aux=target != "win").to(DEVICE)
+    model.trend_name, model.pr_on, model.target = trend, pr_on, target
+    model.sigma_z = 1.05                                      # margin spread in units of 12 points; refitted at the end
+    lam_m, lam_t = cfg.get("lam_m", 1.0), cfg.get("lam_t", 0.5)
     opt = torch.optim.AdamW(model.parameters(), lr=cfg.get("lr", 1e-3), weight_decay=cfg.get("wd", 1e-3))
     train_idx = np.where(D.train_mask(cfg.get("window", 4)))[0]
     val_idx = np.where(D.val)[0]
@@ -178,8 +215,16 @@ def train_one(D, cfg, seed):
         for part in torch.split(perm, BATCH):
             part = part.to(DEVICE)
             opt.zero_grad()
-            logit = model(*batch(D, part, wide_on, trend, pr_on))
-            loss = (nn.functional.binary_cross_entropy_with_logits(logit, D.y[part], reduction="none") * weights[part]).sum() / weights[part].sum()
+            if target == "win":
+                logit = model(*batch(D, part, wide_on, trend, pr_on))
+                per_game = nn.functional.binary_cross_entropy_with_logits(logit, D.y[part], reduction="none")
+            else:
+                logit, margin, total = model(*batch(D, part, wide_on, trend, pr_on), full=True)
+                per_game = (margin - D.ms[part]) ** 2 if target == "margin" else \
+                    nn.functional.binary_cross_entropy_with_logits(logit, D.y[part], reduction="none") + lam_m * (margin - D.ms[part]) ** 2
+                if target == "wmt":
+                    per_game = per_game + lam_t * (total - D.tz[part]) ** 2
+            loss = (per_game * weights[part]).sum() / weights[part].sum()
             loss.backward()
             opt.step()
         with torch.no_grad():
@@ -192,6 +237,12 @@ def train_one(D, cfg, seed):
             if waited >= PATIENCE:
                 break
     model.load_state_dict(best_state)
+    if target == "margin":                                    # spread of the margin errors on the training games
+        with torch.no_grad():
+            model.eval()
+            res = [model(*batch(D, torch.as_tensor(train_idx[i:i + 1024], device=DEVICE), wide_on, trend, pr_on), full=True)[1] - D.ms[torch.as_tensor(train_idx[i:i + 1024], device=DEVICE)]
+                   for i in range(0, len(train_idx), 1024)]
+            model.sigma_z = float(torch.cat(res).std())
     return model, best, best_epoch
 
 
@@ -258,6 +309,12 @@ def main(mode="previous", only=None):
     R = lambda name, cfg, search: run_experiment(D, name + suffix, cfg, search, log=log, log_path=log_path)
     print("device", DEVICE, "| games", len(D.y), "| roster mode", mode)
 
+    if only == "margin":
+        # Same networks and inputs as the headline models; only the training target changes.
+        for tag, enc, search, extra in [("hf_w12_pr_wide", "hf", SEARCH_HF, {}), ("both_w12_pr_wide", "both", SEARCH_SEQ, {})]:
+            for t, t_name in [("margin", "margin"), ("wm", "wm"), ("wmt", "wmt")]:
+                R(f"{tag}_{t_name}", {"encoder": enc, "window": 12, "pr": True, "wide": True, "target": t, **extra}, search)
+        return
     if only == "pr":
         # Each player's own Elo and ridge rating as an input, alone and with the game-level scalars.
         R("hf_w12_pr", {"encoder": "hf", "window": 12, "pr": True}, SEARCH_HF)

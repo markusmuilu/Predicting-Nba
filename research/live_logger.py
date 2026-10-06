@@ -196,6 +196,7 @@ def newest_injury_pdf(now, state, fetch=get):
         if last and key <= last:
             return {"path": state.get("last_pdf_path"), "report_et": last, "new": False}
         for name in pdf_candidates(t):
+            time.sleep(0.5)                       # the archive's CDN blocks bursts (it blocked a fast scan for ~15 min)
             content = fetch(INJURY_PDF.format(stamp=name), retries=1, binary=True)
             if content and len(content) > 1000:
                 d = LIVE_DIR / "injury_pdf"

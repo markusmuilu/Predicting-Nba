@@ -66,7 +66,8 @@ def dl_label(name):
     parts = name.replace("_actual", "").split("_")
     enc = {"hf": "hand-built features", "seq": "raw sequences (GRU)", "both": "hand features + raw sequences"}[parts[0]]
     label = f"Deep Sets, {enc}, {parts[1][1:]} seasons"
-    extras = {"wide": "+ rating scalars", "year": "+ season year", "league": "+ league context", "recency": "+ recency weights", "pr": "+ per-player Elo/ridge ratings"}
+    extras = {"wide": "+ rating scalars", "year": "+ season year", "league": "+ league context", "recency": "+ recency weights", "pr": "+ per-player Elo/ridge ratings",
+              "margin": "trained on margin only", "wm": "trained on win + margin", "wmt": "trained on win + margin + total points"}
     for tag in parts[2:]:
         label += f", {extras[tag]}"
     return label + (", actual roster (optimistic)" if actual else "")
