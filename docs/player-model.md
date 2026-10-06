@@ -14,7 +14,7 @@ pipeline and deploy workflows were not touched.
   Using only the roster of the team's *previous* game, which is knowable before tip-off: log loss 0.5895, accuracy 67.6%.
   The second is the honest number for live use. It is about 0.016 log loss better than the baseline on test
   (95% interval +0.004 to +0.029), but only +0.005 on validation (interval -0.007 to +0.018, includes zero).
-- **The neural network is not what helps.** A plain logistic regression on the same player features does as well
+- **The first Deep Sets model was not what helped (superseded in part by section 9).** A plain logistic regression on the same player features does as well
   (test log loss 0.5936 vs 0.5895, validation 0.6019 vs 0.6024). The gain comes from the player data, not from the deep model.
 - **The optimistic version looks like it matches the betting market and it does not mean that.** On the 680 games with stored
   odds, the actual-roster model has log loss 0.5427 against the market's 0.5432. That is because it knows who played and
@@ -26,8 +26,13 @@ pipeline and deploy workflows were not touched.
   validation season only, it scores 0.5964 (names) and 0.5985 (anonymised): level with the logistic regression (+0.009, interval
   -0.002 to +0.020), a little behind the player model (0.5895), and clearly behind the market. Real names help by about 0.017 raw but
   only 0.002 after recalibration, so most of that raw gap is calibration, not memorised results (section 8).
-- **The Fly.io service is alive** but has stopped saving predictions (section 10).
-- **The dashboard is now a static site** rebuilt daily by a GitHub Action (section 9). It needs three manual steps from you to go live.
+- **Second session: Elo, player ratings and deep learning (section 9).** Plain team Elo, one number per team, beats the production regression on test (log loss 0.5925 vs 0.6057).
+  A 7-number logistic regression on team Elo, player Elo, a ridge plus-minus rating and rest scores 0.5897, and is as good as anything simple. The best deep model, fed each player's own Elo and ridge ratings plus raw
+  20-game sequences, scores 0.5821 to 0.5853 (two near-tied variants), which is about 0.005 to 0.008 better than the 7-number model, with intervals that
+  straddle zero or just clear it. Still behind the market on the 680 odds games (about 0.555 vs 0.543).
+  Raw sequences matched hand-built features; more seasons helped deep models and not linear ones; a season-year input did not help; a learned-parameter "neural Elo" confirmed the hand-tuned grid.
+- **The Fly.io service is alive** but has stopped saving predictions (section 11).
+- **The dashboard is now a static site** rebuilt daily by a GitHub Action (section 10). It needs three manual steps from you to go live.
 
 ## 2. What is where
 
@@ -44,6 +49,13 @@ Predicting-Nba, branch `player-model`, everything new under `research/` (outside
 | `research/evaluate.py` | Step 7. Metrics, calibration, de-vigging, ROI and Kelly. Shared by every model. |
 | `research/report.py` | Scores every model on the same games, writes tables, plots and `metrics.json`. |
 | `research/jev.py` | Part 2. Asks Jev for a home win probability per game, named and anonymised. Cached responses in `data/raw/jev/`. |
+| `research/elo.py` | Team Elo (538 style) and its validation grid. |
+| `research/player_ratings.py` | Player Elo (P1) and ridge plus-minus (P3) engines. |
+| `research/ratings_experiment.py` | Tunes P1 and P3 on validation, exports ratings; `refine` widens the P3 grid. |
+| `research/ratings_preds.py`, `rating_snapshots.py` | Standalone predictions from each rating; per-player rating snapshots for the deep model. |
+| `research/combine.py` | Logistic regressions on production features and rating scalars. |
+| `research/neural_elo.py` | Differentiable Elo with learned parameters and an optional update network. |
+| `research/dl_data.py`, `dl_train.py` | Raw-sequence dataset; the deep-learning experiments. |
 | `research/results/` | Committed outputs: per-game predictions per model, metrics, plots. |
 | `data/` | The raw download cache. Git-ignored, about 75 MB. |
 
@@ -55,6 +67,12 @@ python -m research.baseline
 python -m research.player_features actual && python -m research.train actual
 python -m research.player_features previous && python -m research.train previous
 python -m research.jev previous      # needs a Jev key; about 5 minutes, 8.9M input tokens
+python -m research.fetch --extra     # eight older seasons, nba_api part is quick, PBPStats part is slow and optional
+python -m research.elo
+python -m research.ratings_experiment && python -m research.ratings_experiment refine
+python -m research.ratings_preds && python -m research.combine && python -m research.neural_elo
+python -m research.dl_data previous && python -m research.dl_data actual && python -m research.rating_snapshots
+python -m research.dl_train previous && python -m research.dl_train previous pr && python -m research.dl_train actual
 python -m research.report
 ```
 
@@ -184,6 +202,8 @@ Every model hands over one number per game, the home win probability, and everyt
 All on the same 1,209 games per season. Higher accuracy is better, lower Brier, log loss and ECE are better.
 (Full tables: `research/results/results_table.md`. Plots: `research/results/*.png`.)
 
+*The tables in this section are the first session's. Elo, player ratings and deep learning, and the combined table, are in section 9 and in `research/results/results_table.md`.*
+
 ### Test season 2025-26
 
 | Model | Accuracy | Brier | Log loss | ECE |
@@ -305,7 +325,213 @@ trained logistic regression once its probabilities are put on the right scale. I
 (the "hybrid" idea in the vault note) has not been tried. Other limits: one prompt version, only the top eight players shown, one test season.
 Cost was tiny: about $0.37 of input at the quoted $0.042 per million tokens (a company figure, not independently checked).
 
-## 9. The dashboard
+## 9. Elo, player ratings and deep learning (second session)
+
+You asked for team Elo, some way of using player Elo, several iterations, deep learning on top (including letting it set the Elo parameters),
+as much data as possible, and an answer to whether deep learning removes the need for feature engineering. This section is all of that.
+Code: `research/elo.py`, `player_ratings.py`, `ratings_experiment.py`, `ratings_preds.py`, `rating_snapshots.py`, `combine.py`, `neural_elo.py`,
+`dl_data.py`, `dl_train.py`. Everything uses the same fixed split, the same harness (`evaluate.py`, `report.py`) and the same rule:
+**choices on 2024-25 only, test scored once, and every variant reported, not only the winners.**
+
+### 9.1 What other people do (read online, not verified by running anything)
+
+- **Team Elo, the FiveThirtyEight way.** Rating difference plus a home-court bonus gives the win probability; after the game both ratings move by
+  K times (result minus expected), scaled by a margin-of-victory multiplier; between seasons ratings are pulled back towards the average. The published values
+  I could confirm were a home bonus of 100 Elo points and a carryover of 0.75; I used K = 20 and the margin formula `(margin + 3)^0.8 / (7.5 + 0.006 * winner's edge)`
+  from memory, because FiveThirtyEight's own page now redirects elsewhere. Sources:
+  [archived Elo repository](https://github.com/Neil-Paine-1/NBA-elo), [Harvard Sports Analysis on improving it](https://harvardsportsanalysis.org/2019/01/a-simple-improvement-to-fivethirtyeights-nba-elo-model/).
+- **Player-based systems** (RAPTOR, EPM, DARKO and the "CARM-Elo" family) rate every player and take a team's strength as a *projected-minutes-weighted sum* of its players'
+  ratings, which makes trades and injuries show up immediately. RAPTOR's team adjustment multiplies the minute-weighted average by 4.5 so five players on the court add up to a team rating
+  ([Estimated RAPTOR notes](https://github.com/Neil-Paine-1/NBA-elo)). One open-source project stacks a player Glicko-2 rating, a lineup Elo, a ridge plus-minus regression and a team Elo,
+  then calibrates the result ([BasketballElo](https://github.com/ShaneHurley/BasketballElo)). That is the pattern copied here, in smaller form.
+- **Tuning Elo's few numbers on validation log loss** is standard practice ([SCOPE](https://ojs.aaai.org/index.php/AIIDE/article/view/5233)).
+- **Trees versus neural networks on tabular data of this size** (about 10,000 rows): in a large benchmark tree models stayed ahead, with the reasons given as neural networks being
+  biased towards smooth functions and sensitive to uninformative features ([Grinsztajn et al., NeurIPS 2022](https://arxiv.org/abs/2207.08815)). Relevant to your question; see 9.8.
+
+### 9.2 Team Elo
+
+Run through all 14 seasons in order (2012-13 to 2025-26, 16,888 games; the eight older seasons are only warm-up so ratings are not still at their starting value in 2020-21).
+FiveThirtyEight's published settings, untouched, score a validation log loss of 0.6232, worse than the production regression (0.6077). Tuning four numbers on 2024-25
+(a grid of 1,470 settings; the first, smaller grid had its best point on the edge, so it was widened and re-run) gives **K = 12, home bonus 30, carryover 0.5, margin exponent 1.0**.
+The best point is now interior and the neighbours are almost as good (top five all within 0.0003), which means the choice is not delicate.
+The home bonus of 30 points (about one point of margin) against 538's 100 matches the weaker home-court advantage of recent seasons; the carryover of 0.5 against 0.75 says rosters change more now.
+
+Result: validation log loss 0.6065, same as the 52-feature production model; **test 0.5925 against 0.6057**, a gain of +0.013 (interval +0.003 to +0.024).
+One number per team does the work of 52 features. The likely reason is that the production features are rolling 10-game averages that do not adjust for opponent strength,
+while Elo does, and Elo remembers further back with sensible decay.
+
+### 9.3 Two ways to rate players
+
+Both are strictly point-in-time and share the roster rule from section 5 (previous-game roster is the fair one). Team strength is the sum over a roster of
+`weight x rating`, with weight = share of *expected* minutes (the player's last-10-game average before this game), scaled so a full lineup sums to 5.
+
+- **P1, player Elo.** The same recursion as team Elo, but the "rating" being updated belongs to the players on the floor: after each game every player moves by
+  `K x margin multiplier x (result - expected) x his share of the minutes actually played`. Players regress to 0 each season; a player seen for the first time starts at a replacement level.
+  A random search of 240 settings on validation chose K = 9.3, home 39, carryover 0.71, replacement level -40, margin exponent 0.8.
+- **P3, ridge plus-minus** (the idea behind RAPM). Regress the game's point margin on the minute-share differences between the two rosters. Ridge shrinkage is essential: players are almost always on
+  court with the same teammates, so an unpenalised fit is wildly unstable. Older games are down-weighted with a half-life, and the coefficients are re-solved every 10 games from games played so far.
+  A grid of 29 settings (the first 15 put the best point at the smallest penalty tried, so the grid was extended downwards, and it came back to the same answer) chose lambda = 10 and a half-life of 1,000 games.
+
+Results with the previous-game roster: P1 validation 0.6039, test 0.5930; P3 validation 0.6003, test 0.5897 (accuracy 70.0%). Neither separates from team Elo on test (player Elo is 0.0005 behind it, the ridge model 0.003 ahead; intervals include zero).
+With the actual roster (optimistic) P3 reaches 0.5825 on test, which again shows how much of the apparent edge is knowing who plays.
+
+### 9.4 Stacking: do the rating numbers add anything to a logistic regression?
+
+All logistic regressions, `C` chosen on validation, trained on 2020-21 to 2023-24:
+
+| Model | Val log loss | Test log loss | Test accuracy |
+|---|---|---|---|
+| Production logistic regression (baseline) | 0.6077 | 0.6057 | 66.7% |
+| Team Elo (settings tuned on validation) | 0.6065 | 0.5925 | 69.1% |
+| Neural Elo: K, home bonus, carryover learned by gradient | 0.6063 | 0.5918 | 68.7% |
+| Neural Elo with a learned update network | 0.6065 | 0.5926 | 69.0% |
+| Player Elo, previous-game roster | 0.6039 | 0.5930 | 68.7% |
+| Ridge plus-minus, previous-game roster | 0.6003 | 0.5897 | 70.0% |
+| Production features + team Elo | 0.6035 | 0.5999 | 68.2% |
+| Production features + player Elo and ridge | 0.5978 | 0.5960 | 69.2% |
+| Production features + all rating scalars | 0.5978 | 0.5946 | 69.1% |
+| Logistic regression on 7 rating scalars (team Elo, player Elo, ridge, rest) | 0.5962 | 0.5897 | 68.7% |
+
+- Adding team Elo to the 52 production features helps a little; adding the player ratings helps more.
+- **The 7-number model** (team Elo difference, player Elo difference, ridge margin, rest and back-to-back for both teams) is **better than the 55-feature stack on validation and test**.
+  More columns are not helping; the information is in the three rating differences.
+- Training that 7-number model on 4, 8 or 12 seasons gives validation log loss 0.5962, 0.5965 and 0.5962: **a linear model gets nothing from extra history.** This matters for 9.7.
+
+### 9.5 Neural Elo: letting gradient descent set the parameters
+
+`research/neural_elo.py` makes the Elo recursion differentiable and learns K, home bonus and carryover by back-propagating the log loss through whole seasons (gradients cut at season boundaries).
+A second version replaces the constant K with a small network that sees the margin, the lopsidedness of the matchup, how far into the season it is and both teams' rest.
+
+- **Learned values:** K = 11.8, home bonus 30.0, carryover 0.505. They started at the grid's answer (12, 30, 0.5) and barely moved; early stopping ended training after 16 epochs.
+  The two methods agree, which is reassuring about both and means gradients found nothing the grid missed.
+- **The update network does not help**: validation log loss 0.6065 against 0.6063 for the constant-K version, test 0.5926 against 0.5918.
+  Four numbers is about all this recursion has to tune, and on ~16,000 games an extra network has nothing left to learn.
+
+### 9.6 The deep-learning dataset
+
+`dl_data.py` builds, for each game and each team, the ten players with the most expected minutes, each described by his **last 20 box-score rows before the game date** (16 stats, days since his
+previous game, days before the target game, same-season flag, valid flag). Two views come from that identical window:
+`SEQ`, the raw sequence, and `HF`, 22 hand-built numbers (last-10 and last-20 means, per-36 rates, shooting shape, days since last game, how much history exists). Comparing a model that reads one with a model that reads the other
+isolates a single question: does the network need the features built for it?
+Leakage checks run: for sampled players the window equals his real history, every row is strictly earlier than the game, and the game's own stats are not in it.
+A side benefit: in previous-roster mode the players' windows now include their previous game, so the features are no longer stale by one game as in the first player model.
+Then `snap_p1.npy` and `snap_p3.npy` record every player's Elo and ridge rating at the start of every game, so the network can be given each *player's own* rating.
+
+### 9.7 The deep-learning experiments
+
+Same network family as before (shared per-player encoder, minutes-weighted pooling, antisymmetric home/away head) with switches: the player encoder (hand features, a GRU over raw sequences, or both), game-level rating scalars added to the logit
+("wide"), each player's own ratings as input ("pr"), a time input, and how many training seasons are used. Each experiment tried 4 hyperparameter settings with one seed (chosen on validation), then 5 seeds were trained on the best and averaged,
+and a temperature fitted on validation. 28 experiments, 252 trainings in all (console logs of every sweep are in `research/results/dl_sweep_*_console.log`). Previous-game roster unless stated.
+
+| Model | Val log loss | Test log loss | Test accuracy |
+|---|---|---|---|
+| Hand features, 4 seasons | 0.6018 | 0.6019 | 67.4% |
+| Hand features, 8 seasons | 0.5999 | 0.5976 | 67.7% |
+| Hand features, 12 seasons | 0.5980 | 0.5963 | 67.2% |
+| Raw sequences (GRU), 4 seasons | 0.5996 | 0.5955 | 68.0% |
+| Raw sequences (GRU), 12 seasons | 0.5971 | 0.5913 | 68.5% |
+| Both, 4 seasons | 0.6040 | 0.5973 | 67.7% |
+| Both, 12 seasons | 0.5977 | 0.5910 | 68.2% |
+| Hand features, 12 seasons, + game-level rating scalars | 0.5934 | 0.5868 | 69.1% |
+| Both, 12 seasons, + game-level rating scalars | 0.5910 | 0.5829 | 68.8% |
+| ...+ scalars, + season year | 0.5938 | 0.5877 | 68.2% |
+| ...+ scalars, + league context | 0.5924 | 0.5866 | 67.5% |
+| ...+ scalars, + recency weights | 0.5931 | 0.5890 | 68.4% |
+| Hand features, 12 seasons, + per-player Elo and ridge ratings | 0.5909 | 0.5872 | 69.1% |
+| Hand features, + per-player ratings + scalars | 0.5921 | 0.5865 | 68.5% |
+| Both, + per-player ratings + scalars | 0.5892 | 0.5821 | 69.2% |
+| Both, + per-player ratings + scalars + league context | 0.5891 | 0.5853 | 69.5% |
+
+**How much does more history help?** Hand features: 0.6018 (4 seasons), 0.5999 (8), 0.5980 (12) on validation, and 0.6019, 0.5976, 0.5963 on test. Raw sequences: 0.5996 to 0.5971 validation, 0.5955 to 0.5913 test.
+A steady gain of about 0.003 to 0.006 from tripling the data, in the deep models, and none for the linear 7-number model. That is what the textbooks say should happen: flexible models have a use for more data, simple ones do not.
+(The 2019-20 bubble and the no-fans 2020-21 season are in the training window; I did not test removing them.)
+
+**Do raw sequences replace hand-built features?** Roughly yes: the GRU on raw windows scored 0.5971 validation and 0.5913 test, against 0.5980 and 0.5963 for hand features built from the same windows. A difference of 0.001 on validation and 0.005 on test, with test
+intervals against each other not computed and seed noise of up to about 0.005 (the five seeds of one setting spanned that much in the first model), so call it a tie with a slight lean to the raw sequences, and not worse. Giving the network both was no better than either.
+
+**Where the real gain came from** was not the encoder. It was information the network cannot easily build for itself:
+
+- adding the game-level rating scalars (an Elo-type input) moved hand-feature models from 0.5980 to 0.5934 on validation and 0.5963 to 0.5868 on test;
+- giving each player's own Elo and ridge ratings as inputs did slightly better still (0.5909 / 0.5872 for hand features, 0.5892 / 0.5821 for both encoders).
+  An Elo rating is a hand-built feature with a recursive memory and opponent adjustment. A network handed 20 box-score rows has no way to discover opponent-adjusted strength, because opponents are not in the window.
+
+**Letting the model see time.** Season year as an input did nothing (0.5938 vs 0.5934 without; test 0.5877 vs 0.5868): it is a number the network has never seen at test time (2025 beyond the training years)
+and the model was already handed ratings that carry the era's information. Recency weighting also did nothing (0.5931). League context (league scoring and home win rate so far this season) helped slightly on validation (0.5924) and on test (0.5866), well inside noise.
+So of the four ways to express trend, none was worth the added complication on this evidence.
+
+**The headline deep model.** The validation-selected best fair model is *both encoders, per-player ratings, rating scalars and league context*: validation 0.5891, test 0.5853. The same model without league context scored 0.5892 validation and 0.5821 test.
+Those two are a tie on the selection criterion (0.0001 apart); I am reporting both because picking the better test number would be exactly the mistake the rules forbid.
+
+| Model | Gain over production logreg, test, 95% interval | Gain over the 7-number model, test, 95% interval |
+|---|---|---|
+| Team Elo (settings tuned on validation) | +0.0132 [+0.003, +0.024] | -0.0027 [-0.010, +0.004] |
+| Ridge plus-minus, previous-game roster | +0.0160 [+0.003, +0.029] | +0.0000 [-0.005, +0.005] |
+| Logistic regression on 7 rating scalars (team Elo, player Elo, ridge, rest) | +0.0160 [+0.005, +0.027] | (the reference) |
+| Deep, raw sequences, 12 seasons | +0.0145 [-0.001, +0.029] | -0.0015 [-0.011, +0.008] |
+| Deep, hand features + scalars, 12 seasons | +0.0189 [+0.005, +0.032] | +0.0029 [-0.003, +0.008] |
+| Deep, both + scalars, 12 seasons | +0.0228 [+0.009, +0.036] | +0.0068 [-0.000, +0.013] |
+| Deep, both + per-player ratings + scalars | +0.0236 [+0.010, +0.037] | +0.0076 [+0.001, +0.014] |
+| Deep, both + per-player ratings + scalars + league context (validation-selected) | +0.0205 [+0.006, +0.035] | +0.0045 [-0.003, +0.012] |
+
+**What that table says.**
+- Everything with rating information beats the production regression with intervals above zero.
+- Against the *7-number model*, the best deep models are ahead by +0.005 to +0.008, with intervals that straddle zero or only just clear it. I would describe it as "probably a small gain, not proven".
+- Team Elo, the ridge model, the 7-number regression, the earlier Deep Sets and recalibrated Jev are all within noise of each other. The structure of the problem (strength of the five on the floor) is captured by about three numbers;
+  everything after that fights for the last 0.005.
+
+**With the actual roster (optimistic)**, for the record:
+
+| Model | Val log loss | Test log loss | Test accuracy |
+|---|---|---|---|
+| Hand features, 12 seasons | 0.5901 | 0.5833 | 68.6% |
+| Raw sequences, 12 seasons | 0.5878 | 0.5829 | 69.6% |
+| Hand features + scalars | 0.5825 | 0.5754 | 69.1% |
+| Both + scalars | 0.5813 | 0.5751 | 70.5% |
+| Ridge plus-minus (no network) | 0.5933 | 0.5825 | 69.8% |
+| Production features + scalars (linear) | 0.5914 | 0.5905 | 69.1% |
+
+The best of these, 0.5751 on test, is not a result to quote. It uses information not available before the game.
+
+**Against the market** (the 680 games with stored odds; log loss and bankroll):
+
+| Source | Log loss | Accuracy | Quarter-Kelly final bankroll |
+|---|---|---|---|
+| Market (de-vigged Pinnacle) | 0.5432 | | |
+| Production logistic regression | 0.5805 | 69.6% | 0.04x, max drawdown 98% |
+| Team Elo (settings tuned on validation) | 0.5693 | 71.8% | 0.12x, max drawdown 96% |
+| Logistic regression on 7 rating scalars (team Elo, player Elo, ridge, rest) | 0.5664 | 71.0% | 0.12x, max drawdown 95% |
+| Earlier Deep Sets player model, previous-game roster | 0.5573 | 70.1% | 0.57x, max drawdown 85% |
+| Deep, both + per-player ratings + scalars | 0.5549 | 71.3% | 0.48x, max drawdown 87% |
+| Deep, ... + league context | 0.5570 | 72.8% | 0.53x, max drawdown 89% |
+| Deep, both + scalars, actual roster (optimistic) | 0.5435 | 71.9% | 2.14x, max drawdown 68% |
+
+No fair model reaches the market's 0.5432; the best deep models are about 0.012 to 0.014 behind. Every fair bankroll ends below its start. As before, the optimistic row reaching further is the roster effect.
+
+### 9.8 Your question: with deep learning is feature engineering less important?
+
+Partly yes, but not in the way "deep learning learns the features" suggests. What the experiments show:
+
+1. **Raw per-player sequences versus hand-built summaries of them: a tie.** The network did not need rolling means built for it. That part of your intuition is right, and it needed the extra seasons (with 4 seasons the raw GRU was ahead of hand features by 0.002 on validation and 0.006 on test, which is at the edge of the noise).
+2. **Structure that is not in the input cannot be learned from it.** Opponent-adjusted, long-memory team strength is the thing Elo supplies. Handing the network that scalar was worth more than any change of encoder. That is feature engineering, in the form of an algorithm instead of a column.
+3. **Small, noisy data favours simple structure.** About 10,000 usable games, outcomes mostly luck: the 7-number logistic regression sits within 0.005 of the best network. This is the regime where the benchmark in [Grinsztajn et al.](https://arxiv.org/abs/2207.08815)
+   found trees and simpler models strong. I did not run a tree model here (gradient boosting on the same scalars is an obvious missing comparison).
+4. **Fourier and time-series transforms.** They earn their place on signals with real periodicity at the resolution you sample (vibration, a gait cycle, sensor streams). A player's 20 box scores have no such rhythm worth extracting;
+   the repeating structure in this problem is the weekly schedule and the season, and rest days and season progress are already inputs. **I did not test spectral features**, so this is reasoning, not a result. If you want it tested, it is a cheap experiment: FFT magnitudes of the minutes and points windows as extra hand features.
+5. **Season as a number.** Covered in 9.7: not helpful, and for a reason worth knowing: models cannot extrapolate a counter. Express *what changed* (league scoring, home advantage) rather than *when*.
+
+### 9.9 What was not done, and cautions
+
+- **"All of the data":** I used every box-score row for 14 seasons from `nba_api` (358,520 player-games) plus the schedule. I did not pull play-by-play or player-tracking data, injury reports or lineup data. Those exist but are one request per game (about 17,000), and some do not go back that far.
+- **Not tried:** a differentiable *player* Elo; transformers over a whole roster; gradient-boosted trees; blending models; spectral features; removing the bubble seasons; a 14-season (all) window rather than 12.
+- **Search size and selection.** Across this section about 1,470 team-Elo settings, 240 plus 29 rating settings, 28 deep experiments with 4 settings each, and a handful of linear variants were scored on the same validation season.
+  Selecting the best of that many on one season of ~1,200 games overstates the best validation number somewhat. Test numbers are unselected, but differences of about 0.005 between top models are inside the noise.
+- **The 2025-26 season looks more predictable than 2024-25 for rating models.** Team Elo is level with the production model on validation (+0.001) and clearly ahead on test (+0.013); the logistic regression barely moved between seasons while Elo improved by 0.014. I do not know why
+  (more lopsided teams, perhaps). Do not extrapolate the size of any gain to another season.
+- **The production regression is a weak baseline.** Beating it is easy now; the 7-number model is the fairer yardstick.
+- **Ratings were tuned on validation** and then used as inputs for the deep models, so their validation numbers carry a small optimism; test does not.
+- **Process slip:** a later run overwrote the per-configuration log of the first deep-learning sweep (`dl_iterations.json`); the console logs of all sweeps are saved instead, and the code now appends.
+
+## 10. The dashboard
 
 **Choice: a static site on GitHub Pages**, rebuilt by a scheduled GitHub Action. Repository `nba-dashboard`, branch `static-site`.
 
@@ -323,7 +549,7 @@ What it gives up: the old sidebar filters (no live querying), and data up to a d
 
 **What it contains:**
 1. *2026-27 season*: the production model's daily predictions against results, running accuracy (cumulative and last 20), calibration, latest games.
-   **It is empty right now and says so**, because no 2026-27 regular-season game has been scored yet (section 10 explains why preseason games are missing).
+   **It is empty right now and says so**, because no 2026-27 regular-season game has been scored yet (section 11 explains why preseason games are missing).
 2. *Model comparison*: the test-season table, the paired-bootstrap table, calibration of the models, the market table, a visible warning about the
    optimistic roster rows, and the Jev rows (raw and recalibrated) with a note explaining the recalibration.
 3. *2025-26 archive*: from the five old tabs I kept what answers a question: accuracy by model version, running accuracy, calibration, per-team
@@ -353,7 +579,7 @@ GitHub Pages sets no frame-blocking headers, so the iframe works.
 
 ![2026-27 season tab, empty state](img/dashboard_now.png)
 
-## 10. The Fly.io service (read only, nothing redeployed)
+## 11. The Fly.io service (read only, nothing redeployed)
 
 Checked with GET requests only on 2026-10-05 and 06:
 - `GET /` returns `{"detail":"Not Found"}`. That is simply because the app defines no `/` route. It does **not** mean the service is down.
@@ -375,7 +601,7 @@ Checked with GET requests only on 2026-10-05 and 06:
   The back-to-back flag is similarly taken from the last game, not the upcoming one. Probably a small effect on accuracy; worth fixing before shadow mode.
 - A smaller one: `model_trainer.py` computes ROC-AUC from hard 0/1 predictions, which understates it. Not used by anything.
 
-## 11. Bugs, wrong turns and how they were found
+## 12. Bugs, wrong turns and how they were found
 
 | What | How found | Fix |
 |---|---|---|
@@ -386,9 +612,15 @@ Checked with GET requests only on 2026-10-05 and 06:
 | Bar labels printed inside every team bar | Same screenshot | `textposition: "none"` |
 | Syntax error in `report.py` | Python refused to import it | A `\n` in my edit script became a literal newline inside an f-string |
 | Player-model results looked too good | Log loss equal to the market's on odds games, which is implausible for a free-data model | The "previous-game roster" variant (section 5) |
+| First Elo grid had its best point on the edge | The best setting was the lowest home bonus, lowest carryover and highest margin exponent tried | Widened the grid; the new best is interior and the neighbours are nearly as good |
+| Elo grid crashed on an extreme setting | `OverflowError` from `10 ** x` when ratings diverged | Clipped the exponent so diverging settings just score badly |
+| One 2012-13 game had no player rows | `KeyError` in the rating engine | Dropped games without both rosters |
+| Ridge grid best point on the edge (smallest penalty) | Same check as for Elo | Extended the grid; the answer did not move |
+| Neural Elo detached the carry parameter | Reading the code: the carryover step ran before the gradient cut, so its gradient would have been lost | Detach the old ratings, keep the multiplier in the graph |
+| A later run overwrote the earlier deep-learning iteration log | The file held only 4 entries instead of 12 | Kept the console logs of every sweep in `research/results/`, and the code now appends |
 | 5 baseline games per season had no counterpart | Counted 1,214 vs 1,225 games when comparing sets | They exist in PBPStats only (apparently NBA Cup knockouts); the comparison uses the intersection |
 
-## 12. What you would need to understand to defend this in an interview
+## 13. What you would need to understand to defend this in an interview
 
 1. **Why log loss, not accuracy.** Accuracy throws away the probability. Two models at 67% accuracy can differ a lot in whether "70%" means 70%. The
    market comparison, Kelly sizing and calibration all need honest probabilities.
@@ -404,10 +636,14 @@ Checked with GET requests only on 2026-10-05 and 06:
 8. **The static dashboard decision**: the failure was the platform's sleep policy, so the fix was to remove the process, not to tune the app.
    And what it costs (no live filters, a 60-day scheduled-workflow limit, daily staleness).
 9. **The forking path** in section 5. Say it before they ask.
+10. **Why team Elo beat a 52-feature regression**: it adjusts for opponent strength and remembers further back with decay. Be able to write the update rule and say what K, the home bonus and the carryover each do.
+11. **Why a 7-number model is as good as the networks**, and what that says about signal in game results. The honest summary of section 9 is "ratings carry the signal; the deep model adds a little".
+12. **Why you cannot feed a model the year**, and what to give it instead.
+13. **What an interviewer might push on**: that you tuned about 1,800 settings on one validation season, that the baseline was weak, that 2025-26 was an easier season for rating models, and that the optimistic roster is still not available before tip-off.
 
 Do not claim: that this beats the market, that the 6.8x bankroll is meaningful, that Jev beat the baseline (it matched it after recalibration), or that the player model is deployed.
 
-## 13. Out of scope, and what it would take
+## 14. Out of scope, and what it would take
 
 Not done, as instructed. Rough list, in the order I would do it:
 
@@ -422,7 +658,7 @@ Not done, as instructed. Rough list, in the order I would do it:
    model version per prediction.
 6. **Evaluation on forward data only** for 2026-27 (Jev included: its pretraining may contain 2025-26, so only games after setup are clean for it), with a threshold fixed before the first game. The Jev plus player-model hybrid from the vault note is untested.
 
-## 14. Decisions made without asking
+## 15. Decisions made without asking
 
 - Two roster variants, with the previous-game one as the fair comparison (section 5).
 - Antisymmetric head as the default, the plan's plain MLP kept as an option and compared.
@@ -432,4 +668,9 @@ Not done, as instructed. Rough list, in the order I would do it:
 - `research/` outside `src/` and a separate requirements file, so the production image is unchanged.
 - Static site on GitHub Pages rather than Cloudflare Pages; Plotly vendored.
 - The legacy Streamlit code was left in place and its README moved to `docs/streamlit-legacy.md`.
+- Second session: 8 older seasons as warm-up and as extra training data; team Elo tuned by grid, player Elo by random search, ridge by grid, all on validation with the previous-game roster.
+- Added the 7-number model as a second baseline after seeing that the production regression was weak.
+- Deep models built so the only difference between the "raw" and "hand-built" arms is who computes the features.
+- Reported both near-tied top deep models rather than picking by test result.
+- Did not test spectral features, play-by-play data, tree models or a differentiable player Elo (listed in 9.9).
 - Commits have plain messages with no attribution trailer, as asked.

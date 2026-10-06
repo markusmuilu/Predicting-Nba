@@ -1,0 +1,312 @@
+[
+ {
+  "name": "hf_w12_pr",
+  "cfg": {
+   "encoder": "hf",
+   "window": 12,
+   "pr": true,
+   "embed": 16,
+   "hidden": 32,
+   "dropout": 0.3
+  },
+  "temperature": 0.9688082933425903,
+  "val": {
+   "n": 1225,
+   "accuracy": 0.6881632653061225,
+   "brier": 0.20283523082116944,
+   "log_loss": 0.5912805346710752,
+   "ece": 0.03417651191049695
+  },
+  "n_tried": 4,
+  "tried": [
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 12,
+     "pr": true,
+     "embed": 16,
+     "hidden": 32,
+     "dropout": 0.1
+    },
+    "val_log_loss": 0.5920621752738953,
+    "epoch": 17
+   },
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 12,
+     "pr": true,
+     "embed": 16,
+     "hidden": 32,
+     "dropout": 0.3
+    },
+    "val_log_loss": 0.5912442803382874,
+    "epoch": 19
+   },
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 12,
+     "pr": true,
+     "embed": 32,
+     "hidden": 64,
+     "dropout": 0.2,
+     "wd": 0.01
+    },
+    "val_log_loss": 0.594062328338623,
+    "epoch": 7
+   },
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 12,
+     "pr": true,
+     "embed": 8,
+     "hidden": 16,
+     "dropout": 0.1
+    },
+    "val_log_loss": 0.5926133394241333,
+    "epoch": 24
+   }
+  ],
+  "seconds": 56
+ },
+ {
+  "name": "hf_w12_pr_wide",
+  "cfg": {
+   "encoder": "hf",
+   "window": 12,
+   "pr": true,
+   "wide": true,
+   "embed": 16,
+   "hidden": 32,
+   "dropout": 0.1
+  },
+  "temperature": 0.9984810948371887,
+  "val": {
+   "n": 1225,
+   "accuracy": 0.6873469387755102,
+   "brier": 0.2033150113045058,
+   "log_loss": 0.5922277159674488,
+   "ece": 0.03595464654114781
+  },
+  "n_tried": 4,
+  "tried": [
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 12,
+     "pr": true,
+     "wide": true,
+     "embed": 16,
+     "hidden": 32,
+     "dropout": 0.1
+    },
+    "val_log_loss": 0.592717170715332,
+    "epoch": 13
+   },
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 12,
+     "pr": true,
+     "wide": true,
+     "embed": 16,
+     "hidden": 32,
+     "dropout": 0.3
+    },
+    "val_log_loss": 0.5930294394493103,
+    "epoch": 17
+   },
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 12,
+     "pr": true,
+     "wide": true,
+     "embed": 32,
+     "hidden": 64,
+     "dropout": 0.2,
+     "wd": 0.01
+    },
+    "val_log_loss": 0.5930656790733337,
+    "epoch": 7
+   },
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 12,
+     "pr": true,
+     "wide": true,
+     "embed": 8,
+     "hidden": 16,
+     "dropout": 0.1
+    },
+    "val_log_loss": 0.5938675999641418,
+    "epoch": 23
+   }
+  ],
+  "seconds": 58
+ },
+ {
+  "name": "both_w12_pr_wide",
+  "cfg": {
+   "encoder": "both",
+   "window": 12,
+   "pr": true,
+   "wide": true,
+   "gru_hidden": 64,
+   "embed": 32,
+   "dropout": 0.2,
+   "wd": 0.01
+  },
+  "temperature": 0.9667961001396179,
+  "val": {
+   "n": 1225,
+   "accuracy": 0.6979591836734694,
+   "brier": 0.20210022047888496,
+   "log_loss": 0.5891809061463545,
+   "ece": 0.024022897889419467
+  },
+  "n_tried": 4,
+  "tried": [
+   {
+    "cfg": {
+     "encoder": "both",
+     "window": 12,
+     "pr": true,
+     "wide": true,
+     "gru_hidden": 32,
+     "embed": 16,
+     "dropout": 0.1
+    },
+    "val_log_loss": 0.5938333868980408,
+    "epoch": 4
+   },
+   {
+    "cfg": {
+     "encoder": "both",
+     "window": 12,
+     "pr": true,
+     "wide": true,
+     "gru_hidden": 32,
+     "embed": 16,
+     "dropout": 0.3
+    },
+    "val_log_loss": 0.5934808254241943,
+    "epoch": 7
+   },
+   {
+    "cfg": {
+     "encoder": "both",
+     "window": 12,
+     "pr": true,
+     "wide": true,
+     "gru_hidden": 64,
+     "embed": 32,
+     "dropout": 0.2,
+     "wd": 0.01
+    },
+    "val_log_loss": 0.5897848606109619,
+    "epoch": 10
+   },
+   {
+    "cfg": {
+     "encoder": "both",
+     "window": 12,
+     "pr": true,
+     "wide": true,
+     "gru_hidden": 16,
+     "embed": 8,
+     "dropout": 0.1
+    },
+    "val_log_loss": 0.5906252861022949,
+    "epoch": 12
+   }
+  ],
+  "seconds": 116
+ },
+ {
+  "name": "both_w12_pr_wide_league",
+  "cfg": {
+   "encoder": "both",
+   "window": 12,
+   "pr": true,
+   "wide": true,
+   "trend": "league",
+   "gru_hidden": 64,
+   "embed": 32,
+   "dropout": 0.2,
+   "wd": 0.01
+  },
+  "temperature": 0.9573577046394348,
+  "val": {
+   "n": 1225,
+   "accuracy": 0.6840816326530612,
+   "brier": 0.20220035025558195,
+   "log_loss": 0.5890244974418424,
+   "ece": 0.02119887994868413
+  },
+  "n_tried": 4,
+  "tried": [
+   {
+    "cfg": {
+     "encoder": "both",
+     "window": 12,
+     "pr": true,
+     "wide": true,
+     "trend": "league",
+     "gru_hidden": 32,
+     "embed": 16,
+     "dropout": 0.1
+    },
+    "val_log_loss": 0.5920970439910889,
+    "epoch": 7
+   },
+   {
+    "cfg": {
+     "encoder": "both",
+     "window": 12,
+     "pr": true,
+     "wide": true,
+     "trend": "league",
+     "gru_hidden": 32,
+     "embed": 16,
+     "dropout": 0.3
+    },
+    "val_log_loss": 0.5918673872947693,
+    "epoch": 7
+   },
+   {
+    "cfg": {
+     "encoder": "both",
+     "window": 12,
+     "pr": true,
+     "wide": true,
+     "trend": "league",
+     "gru_hidden": 64,
+     "embed": 32,
+     "dropout": 0.2,
+     "wd": 0.01
+    },
+    "val_log_loss": 0.5893299579620361,
+    "epoch": 10
+   },
+   {
+    "cfg": {
+     "encoder": "both",
+     "window": 12,
+     "pr": true,
+     "wide": true,
+     "trend": "league",
+     "gru_hidden": 16,
+     "embed": 8,
+     "dropout": 0.1
+    },
+    "val_log_loss": 0.5902827382087708,
+    "epoch": 13
+   }
+  ],
+  "seconds": 92
+ }
+]

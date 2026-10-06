@@ -1,0 +1,848 @@
+[
+ {
+  "name": "hf_w4_actual",
+  "cfg": {
+   "encoder": "hf",
+   "window": 4,
+   "embed": 16,
+   "hidden": 32,
+   "dropout": 0.1
+  },
+  "temperature": 0.9719707369804382,
+  "val": {
+   "n": 1225,
+   "accuracy": 0.6848979591836735,
+   "brier": 0.20478906052536136,
+   "log_loss": 0.5956209291239245,
+   "ece": 0.03768378379393598
+  },
+  "n_tried": 4,
+  "tried": [
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 4,
+     "embed": 16,
+     "hidden": 32,
+     "dropout": 0.1
+    },
+    "val_log_loss": 0.5957327485084534,
+    "epoch": 7
+   },
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 4,
+     "embed": 16,
+     "hidden": 32,
+     "dropout": 0.3
+    },
+    "val_log_loss": 0.5964272618293762,
+    "epoch": 8
+   },
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 4,
+     "embed": 32,
+     "hidden": 64,
+     "dropout": 0.2,
+     "wd": 0.01
+    },
+    "val_log_loss": 0.596727728843689,
+    "epoch": 11
+   },
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 4,
+     "embed": 8,
+     "hidden": 16,
+     "dropout": 0.1
+    },
+    "val_log_loss": 0.5959245562553406,
+    "epoch": 12
+   }
+  ],
+  "seconds": 12
+ },
+ {
+  "name": "hf_w8_actual",
+  "cfg": {
+   "encoder": "hf",
+   "window": 8,
+   "embed": 16,
+   "hidden": 32,
+   "dropout": 0.1
+  },
+  "temperature": 0.9811002612113953,
+  "val": {
+   "n": 1225,
+   "accuracy": 0.6840816326530612,
+   "brier": 0.20273775567830057,
+   "log_loss": 0.591229164648751,
+   "ece": 0.03318990056612053
+  },
+  "n_tried": 4,
+  "tried": [
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 8,
+     "embed": 16,
+     "hidden": 32,
+     "dropout": 0.1
+    },
+    "val_log_loss": 0.5902876853942871,
+    "epoch": 13
+   },
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 8,
+     "embed": 16,
+     "hidden": 32,
+     "dropout": 0.3
+    },
+    "val_log_loss": 0.5911864042282104,
+    "epoch": 14
+   },
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 8,
+     "embed": 32,
+     "hidden": 64,
+     "dropout": 0.2,
+     "wd": 0.01
+    },
+    "val_log_loss": 0.5906755924224854,
+    "epoch": 10
+   },
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 8,
+     "embed": 8,
+     "hidden": 16,
+     "dropout": 0.1
+    },
+    "val_log_loss": 0.590910792350769,
+    "epoch": 65
+   }
+  ],
+  "seconds": 29
+ },
+ {
+  "name": "hf_w12_actual",
+  "cfg": {
+   "encoder": "hf",
+   "window": 12,
+   "embed": 8,
+   "hidden": 16,
+   "dropout": 0.1
+  },
+  "temperature": 1.004207968711853,
+  "val": {
+   "n": 1225,
+   "accuracy": 0.6848979591836735,
+   "brier": 0.2022004277902365,
+   "log_loss": 0.5900811428925309,
+   "ece": 0.02750932970825509
+  },
+  "n_tried": 4,
+  "tried": [
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 12,
+     "embed": 16,
+     "hidden": 32,
+     "dropout": 0.1
+    },
+    "val_log_loss": 0.5907615423202515,
+    "epoch": 9
+   },
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 12,
+     "embed": 16,
+     "hidden": 32,
+     "dropout": 0.3
+    },
+    "val_log_loss": 0.5911890268325806,
+    "epoch": 12
+   },
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 12,
+     "embed": 32,
+     "hidden": 64,
+     "dropout": 0.2,
+     "wd": 0.01
+    },
+    "val_log_loss": 0.5904011726379395,
+    "epoch": 4
+   },
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 12,
+     "embed": 8,
+     "hidden": 16,
+     "dropout": 0.1
+    },
+    "val_log_loss": 0.5901311635971069,
+    "epoch": 24
+   }
+  ],
+  "seconds": 43
+ },
+ {
+  "name": "seq_w4_actual",
+  "cfg": {
+   "encoder": "seq",
+   "window": 4,
+   "gru_hidden": 32,
+   "embed": 16,
+   "dropout": 0.1
+  },
+  "temperature": 0.9236493706703186,
+  "val": {
+   "n": 1225,
+   "accuracy": 0.686530612244898,
+   "brier": 0.2028142922184317,
+   "log_loss": 0.5911299087420029,
+   "ece": 0.041866775854509715
+  },
+  "n_tried": 4,
+  "tried": [
+   {
+    "cfg": {
+     "encoder": "seq",
+     "window": 4,
+     "gru_hidden": 32,
+     "embed": 16,
+     "dropout": 0.1
+    },
+    "val_log_loss": 0.5905532240867615,
+    "epoch": 10
+   },
+   {
+    "cfg": {
+     "encoder": "seq",
+     "window": 4,
+     "gru_hidden": 32,
+     "embed": 16,
+     "dropout": 0.3
+    },
+    "val_log_loss": 0.5911254286766052,
+    "epoch": 13
+   },
+   {
+    "cfg": {
+     "encoder": "seq",
+     "window": 4,
+     "gru_hidden": 64,
+     "embed": 32,
+     "dropout": 0.2,
+     "wd": 0.01
+    },
+    "val_log_loss": 0.595845103263855,
+    "epoch": 7
+   },
+   {
+    "cfg": {
+     "encoder": "seq",
+     "window": 4,
+     "gru_hidden": 16,
+     "embed": 8,
+     "dropout": 0.1
+    },
+    "val_log_loss": 0.5944236516952515,
+    "epoch": 10
+   }
+  ],
+  "seconds": 21
+ },
+ {
+  "name": "both_w4_actual",
+  "cfg": {
+   "encoder": "both",
+   "window": 4,
+   "gru_hidden": 32,
+   "embed": 16,
+   "dropout": 0.1
+  },
+  "temperature": 0.9535665512084961,
+  "val": {
+   "n": 1225,
+   "accuracy": 0.6816326530612244,
+   "brier": 0.2046645249648378,
+   "log_loss": 0.5955071821224883,
+   "ece": 0.035119384411646366
+  },
+  "n_tried": 4,
+  "tried": [
+   {
+    "cfg": {
+     "encoder": "both",
+     "window": 4,
+     "gru_hidden": 32,
+     "embed": 16,
+     "dropout": 0.1
+    },
+    "val_log_loss": 0.5946580171585083,
+    "epoch": 7
+   },
+   {
+    "cfg": {
+     "encoder": "both",
+     "window": 4,
+     "gru_hidden": 32,
+     "embed": 16,
+     "dropout": 0.3
+    },
+    "val_log_loss": 0.5952323079109192,
+    "epoch": 7
+   },
+   {
+    "cfg": {
+     "encoder": "both",
+     "window": 4,
+     "gru_hidden": 64,
+     "embed": 32,
+     "dropout": 0.2,
+     "wd": 0.01
+    },
+    "val_log_loss": 0.5958251357078552,
+    "epoch": 5
+   },
+   {
+    "cfg": {
+     "encoder": "both",
+     "window": 4,
+     "gru_hidden": 16,
+     "embed": 8,
+     "dropout": 0.1
+    },
+    "val_log_loss": 0.5973569750785828,
+    "epoch": 8
+   }
+  ],
+  "seconds": 19
+ },
+ {
+  "name": "seq_w12_actual",
+  "cfg": {
+   "encoder": "seq",
+   "window": 12,
+   "gru_hidden": 32,
+   "embed": 16,
+   "dropout": 0.3
+  },
+  "temperature": 0.9817802309989929,
+  "val": {
+   "n": 1225,
+   "accuracy": 0.6930612244897959,
+   "brier": 0.2017723618569312,
+   "log_loss": 0.588105235142174,
+   "ece": 0.03332467789552648
+  },
+  "n_tried": 4,
+  "tried": [
+   {
+    "cfg": {
+     "encoder": "seq",
+     "window": 12,
+     "gru_hidden": 32,
+     "embed": 16,
+     "dropout": 0.1
+    },
+    "val_log_loss": 0.5878347158432007,
+    "epoch": 10
+   },
+   {
+    "cfg": {
+     "encoder": "seq",
+     "window": 12,
+     "gru_hidden": 32,
+     "embed": 16,
+     "dropout": 0.3
+    },
+    "val_log_loss": 0.5875416398048401,
+    "epoch": 6
+   },
+   {
+    "cfg": {
+     "encoder": "seq",
+     "window": 12,
+     "gru_hidden": 64,
+     "embed": 32,
+     "dropout": 0.2,
+     "wd": 0.01
+    },
+    "val_log_loss": 0.588179886341095,
+    "epoch": 10
+   },
+   {
+    "cfg": {
+     "encoder": "seq",
+     "window": 12,
+     "gru_hidden": 16,
+     "embed": 8,
+     "dropout": 0.1
+    },
+    "val_log_loss": 0.5895527005195618,
+    "epoch": 6
+   }
+  ],
+  "seconds": 70
+ },
+ {
+  "name": "both_w12_actual",
+  "cfg": {
+   "encoder": "both",
+   "window": 12,
+   "gru_hidden": 64,
+   "embed": 32,
+   "dropout": 0.2,
+   "wd": 0.01
+  },
+  "temperature": 0.963844895362854,
+  "val": {
+   "n": 1225,
+   "accuracy": 0.7012244897959183,
+   "brier": 0.2012397999273937,
+   "log_loss": 0.5878817080125996,
+   "ece": 0.03178503807101931
+  },
+  "n_tried": 4,
+  "tried": [
+   {
+    "cfg": {
+     "encoder": "both",
+     "window": 12,
+     "gru_hidden": 32,
+     "embed": 16,
+     "dropout": 0.1
+    },
+    "val_log_loss": 0.5886740684509277,
+    "epoch": 4
+   },
+   {
+    "cfg": {
+     "encoder": "both",
+     "window": 12,
+     "gru_hidden": 32,
+     "embed": 16,
+     "dropout": 0.3
+    },
+    "val_log_loss": 0.5883176922798157,
+    "epoch": 9
+   },
+   {
+    "cfg": {
+     "encoder": "both",
+     "window": 12,
+     "gru_hidden": 64,
+     "embed": 32,
+     "dropout": 0.2,
+     "wd": 0.01
+    },
+    "val_log_loss": 0.5882624387741089,
+    "epoch": 5
+   },
+   {
+    "cfg": {
+     "encoder": "both",
+     "window": 12,
+     "gru_hidden": 16,
+     "embed": 8,
+     "dropout": 0.1
+    },
+    "val_log_loss": 0.5931451320648193,
+    "epoch": 4
+   }
+  ],
+  "seconds": 83
+ },
+ {
+  "name": "hf_w12_wide_actual",
+  "cfg": {
+   "encoder": "hf",
+   "window": 12,
+   "wide": true,
+   "embed": 8,
+   "hidden": 16,
+   "dropout": 0.1
+  },
+  "temperature": 1.0000779628753662,
+  "val": {
+   "n": 1225,
+   "accuracy": 0.6946938775510204,
+   "brier": 0.19936167852129325,
+   "log_loss": 0.5820344116267122,
+   "ece": 0.0261162270544743
+  },
+  "n_tried": 4,
+  "tried": [
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 12,
+     "wide": true,
+     "embed": 16,
+     "hidden": 32,
+     "dropout": 0.1
+    },
+    "val_log_loss": 0.5865045189857483,
+    "epoch": 28
+   },
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 12,
+     "wide": true,
+     "embed": 16,
+     "hidden": 32,
+     "dropout": 0.3
+    },
+    "val_log_loss": 0.5840331315994263,
+    "epoch": 28
+   },
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 12,
+     "wide": true,
+     "embed": 32,
+     "hidden": 64,
+     "dropout": 0.2,
+     "wd": 0.01
+    },
+    "val_log_loss": 0.5833456516265869,
+    "epoch": 29
+   },
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 12,
+     "wide": true,
+     "embed": 8,
+     "hidden": 16,
+     "dropout": 0.1
+    },
+    "val_log_loss": 0.5830227732658386,
+    "epoch": 19
+   }
+  ],
+  "seconds": 125
+ },
+ {
+  "name": "both_w12_wide_actual",
+  "cfg": {
+   "encoder": "both",
+   "window": 12,
+   "wide": true,
+   "gru_hidden": 64,
+   "embed": 32,
+   "dropout": 0.2,
+   "wd": 0.01
+  },
+  "temperature": 0.9465909004211426,
+  "val": {
+   "n": 1225,
+   "accuracy": 0.6938775510204082,
+   "brier": 0.19843984535034376,
+   "log_loss": 0.580750030932648,
+   "ece": 0.017551432896633534
+  },
+  "n_tried": 4,
+  "tried": [
+   {
+    "cfg": {
+     "encoder": "both",
+     "window": 12,
+     "wide": true,
+     "gru_hidden": 32,
+     "embed": 16,
+     "dropout": 0.1
+    },
+    "val_log_loss": 0.5889506936073303,
+    "epoch": 9
+   },
+   {
+    "cfg": {
+     "encoder": "both",
+     "window": 12,
+     "wide": true,
+     "gru_hidden": 32,
+     "embed": 16,
+     "dropout": 0.3
+    },
+    "val_log_loss": 0.5897054076194763,
+    "epoch": 9
+   },
+   {
+    "cfg": {
+     "encoder": "both",
+     "window": 12,
+     "wide": true,
+     "gru_hidden": 64,
+     "embed": 32,
+     "dropout": 0.2,
+     "wd": 0.01
+    },
+    "val_log_loss": 0.5858424305915833,
+    "epoch": 7
+   },
+   {
+    "cfg": {
+     "encoder": "both",
+     "window": 12,
+     "wide": true,
+     "gru_hidden": 16,
+     "embed": 8,
+     "dropout": 0.1
+    },
+    "val_log_loss": 0.5877861976623535,
+    "epoch": 7
+   }
+  ],
+  "seconds": 89
+ },
+ {
+  "name": "hf_w12_wide_year_actual",
+  "cfg": {
+   "encoder": "hf",
+   "window": 12,
+   "wide": true,
+   "trend": "year",
+   "embed": 16,
+   "hidden": 32,
+   "dropout": 0.3
+  },
+  "temperature": 0.9731049537658691,
+  "val": {
+   "n": 1225,
+   "accuracy": 0.689795918367347,
+   "brier": 0.19903431766083865,
+   "log_loss": 0.5813066893314607,
+   "ece": 0.03567972466349601
+  },
+  "n_tried": 4,
+  "tried": [
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 12,
+     "wide": true,
+     "trend": "year",
+     "embed": 16,
+     "hidden": 32,
+     "dropout": 0.1
+    },
+    "val_log_loss": 0.5866265892982483,
+    "epoch": 28
+   },
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 12,
+     "wide": true,
+     "trend": "year",
+     "embed": 16,
+     "hidden": 32,
+     "dropout": 0.3
+    },
+    "val_log_loss": 0.5830173492431641,
+    "epoch": 28
+   },
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 12,
+     "wide": true,
+     "trend": "year",
+     "embed": 32,
+     "hidden": 64,
+     "dropout": 0.2,
+     "wd": 0.01
+    },
+    "val_log_loss": 0.5849387049674988,
+    "epoch": 29
+   },
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 12,
+     "wide": true,
+     "trend": "year",
+     "embed": 8,
+     "hidden": 16,
+     "dropout": 0.1
+    },
+    "val_log_loss": 0.5852953791618347,
+    "epoch": 37
+   }
+  ],
+  "seconds": 128
+ },
+ {
+  "name": "hf_w12_wide_league_actual",
+  "cfg": {
+   "encoder": "hf",
+   "window": 12,
+   "wide": true,
+   "trend": "league",
+   "embed": 8,
+   "hidden": 16,
+   "dropout": 0.1
+  },
+  "temperature": 1.0000324249267578,
+  "val": {
+   "n": 1225,
+   "accuracy": 0.6938775510204082,
+   "brier": 0.19921914120183296,
+   "log_loss": 0.5817160680413145,
+   "ece": 0.02631255710915642
+  },
+  "n_tried": 4,
+  "tried": [
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 12,
+     "wide": true,
+     "trend": "league",
+     "embed": 16,
+     "hidden": 32,
+     "dropout": 0.1
+    },
+    "val_log_loss": 0.5835924744606018,
+    "epoch": 28
+   },
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 12,
+     "wide": true,
+     "trend": "league",
+     "embed": 16,
+     "hidden": 32,
+     "dropout": 0.3
+    },
+    "val_log_loss": 0.5841688513755798,
+    "epoch": 28
+   },
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 12,
+     "wide": true,
+     "trend": "league",
+     "embed": 32,
+     "hidden": 64,
+     "dropout": 0.2,
+     "wd": 0.01
+    },
+    "val_log_loss": 0.5862185955047607,
+    "epoch": 19
+   },
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 12,
+     "wide": true,
+     "trend": "league",
+     "embed": 8,
+     "hidden": 16,
+     "dropout": 0.1
+    },
+    "val_log_loss": 0.5827271342277527,
+    "epoch": 28
+   }
+  ],
+  "seconds": 127
+ },
+ {
+  "name": "hf_w12_wide_recency_actual",
+  "cfg": {
+   "encoder": "hf",
+   "window": 12,
+   "wide": true,
+   "recency_tau": 3.0,
+   "embed": 8,
+   "hidden": 16,
+   "dropout": 0.1
+  },
+  "temperature": 0.9812038540840149,
+  "val": {
+   "n": 1225,
+   "accuracy": 0.6889795918367347,
+   "brier": 0.20027423627234528,
+   "log_loss": 0.5844694550622771,
+   "ece": 0.02155125228726134
+  },
+  "n_tried": 4,
+  "tried": [
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 12,
+     "wide": true,
+     "recency_tau": 3.0,
+     "embed": 16,
+     "hidden": 32,
+     "dropout": 0.1
+    },
+    "val_log_loss": 0.5910901427268982,
+    "epoch": 22
+   },
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 12,
+     "wide": true,
+     "recency_tau": 3.0,
+     "embed": 16,
+     "hidden": 32,
+     "dropout": 0.3
+    },
+    "val_log_loss": 0.5895935297012329,
+    "epoch": 22
+   },
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 12,
+     "wide": true,
+     "recency_tau": 3.0,
+     "embed": 32,
+     "hidden": 64,
+     "dropout": 0.2,
+     "wd": 0.01
+    },
+    "val_log_loss": 0.5977276563644409,
+    "epoch": 17
+   },
+   {
+    "cfg": {
+     "encoder": "hf",
+     "window": 12,
+     "wide": true,
+     "recency_tau": 3.0,
+     "embed": 8,
+     "hidden": 16,
+     "dropout": 0.1
+    },
+    "val_log_loss": 0.5845301747322083,
+    "epoch": 7
+   }
+  ],
+  "seconds": 100
+ }
+]

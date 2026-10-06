@@ -23,6 +23,11 @@ TRAIN_SEASONS = ["2020-21", "2021-22", "2022-23", "2023-24"]
 VAL_SEASON = "2024-25"
 TEST_SEASON = "2025-26"
 
+# Extra, older seasons for the "does more history help?" experiments. They are only ever
+# used for training (they precede the training window), so the validation and test
+# seasons and the fixed split are unchanged.
+EXTRA_SEASONS = ["2012-13", "2013-14", "2014-15", "2015-16", "2016-17", "2017-18", "2018-19", "2019-20"]
+
 SEED = 42
 
 for d in (RAW_DIR, PROCESSED_DIR, RESULTS_DIR):

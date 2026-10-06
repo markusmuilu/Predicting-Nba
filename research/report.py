@@ -39,8 +39,45 @@ MODELS = {
     "jev_anonymised": ("Jev, anonymised, previous-game roster", "pred_jev_anonymised_previous.csv"),
     "jev_named_cal": ("Jev, real names, recalibrated on validation", None),
     "jev_anonymised_cal": ("Jev, anonymised, recalibrated on validation", None),
+    # Elo and rating systems (research/elo.py, player_ratings.py, neural_elo.py, combine.py)
+    "team_elo": ("Team Elo (settings tuned on validation)", "pred_team_elo.csv"),
+    "neural_elo_plain": ("Neural Elo: K, home bonus, carryover learned by gradient", "pred_neural_elo_plain.csv"),
+    "neural_elo": ("Neural Elo with a learned update network", "pred_neural_elo.csv"),
+    "player_elo_prev": ("Player Elo, previous-game roster", "pred_player_elo_prev.csv"),
+    "ridge_prev": ("Ridge plus-minus, previous-game roster", "pred_ridge_prev.csv"),
+    "player_elo_act": ("Player Elo, actual roster (optimistic)", "pred_player_elo_act.csv"),
+    "ridge_act": ("Ridge plus-minus, actual roster (optimistic)", "pred_ridge_act.csv"),
+    "comb_scalars": ("Logistic regression on 7 rating scalars (team Elo, player Elo, ridge, rest)", "pred_comb_scalars.csv"),
+    "comb_prod_elo": ("Production features + team Elo", "pred_comb_prod+elo.csv"),
+    "comb_prod_ratings": ("Production features + player Elo and ridge", "pred_comb_prod+ratings.csv"),
+    "comb_prod_all": ("Production features + all rating scalars", "pred_comb_prod+all.csv"),
+    "comb_all_actual": ("Production features + rating scalars, actual roster (optimistic)", "pred_comb_all_actual.csv"),
 }
 KEY = ["date", "home", "away"]
+
+# Shown in the plots and the headline dashboard table. Everything else is in the full tables.
+FEATURED = ["logreg", "team_elo", "ridge_prev", "comb_scalars", "player_model_prev", "dl_hf_w12", "dl_seq_w12",
+            "dl_both_w12_pr_wide_league", "jev_named_cal"]
+
+
+def dl_label(name):
+    """pred_dl_<name>.csv -> readable label, e.g. both_w12_wide -> 'Deep Sets, hand features + raw sequences, 12 seasons, + rating scalars'."""
+    actual = name.endswith("_actual")
+    parts = name.replace("_actual", "").split("_")
+    enc = {"hf": "hand-built features", "seq": "raw sequences (GRU)", "both": "hand features + raw sequences"}[parts[0]]
+    label = f"Deep Sets, {enc}, {parts[1][1:]} seasons"
+    extras = {"wide": "+ rating scalars", "year": "+ season year", "league": "+ league context", "recency": "+ recency weights", "pr": "+ per-player Elo/ridge ratings"}
+    for tag in parts[2:]:
+        label += f", {extras[tag]}"
+    return label + (", actual roster (optimistic)" if actual else "")
+
+
+def discover_dl_models():
+    out = {}
+    for path in sorted(RESULTS_DIR.glob("pred_dl_*.csv")):
+        name = path.stem[len("pred_dl_"):]
+        out[f"dl_{name}"] = (dl_label(name), path.name)
+    return out
 
 
 def platt_recalibrate(df):
@@ -60,9 +97,13 @@ def platt_recalibrate(df):
     return d
 
 
+def all_models():
+    return {**MODELS, **discover_dl_models()}
+
+
 def load_predictions():
     preds = {}
-    for key, (_, fname) in MODELS.items():
+    for key, (_, fname) in all_models().items():
         if fname is None:
             continue
         path = RESULTS_DIR / fname
@@ -132,7 +173,7 @@ def plot_bankroll(curves, path):
 def run():
     preds = load_predictions()
     live = load_live_history()
-    names = {k: MODELS[k][0] for k in preds}
+    names = {k: all_models()[k][0] for k in preds}
     out = {"models": names, "splits": {}}
 
     for season, label in [(VAL_SEASON, "validation"), (TEST_SEASON, "test")]:
@@ -145,6 +186,11 @@ def run():
             split["buckets"][k] = confidence_buckets(y, games[f"p_{k}"])
         split["paired_vs_logreg"] = {k: paired_bootstrap(y, games["p_logreg"], games[f"p_{k}"])
                                      for k in preds if k != "logreg"}
+        # The production logistic regression turned out to be a weak baseline (a 7-number model and
+        # plain team Elo both beat it), so every model is also compared with the 7-number model.
+        if "comb_scalars" in preds:
+            split["paired_vs_scalars"] = {k: paired_bootstrap(y, games["p_comb_scalars"], games[f"p_{k}"])
+                                          for k in preds if k != "comb_scalars"}
         if "jev_named" in preds and "jev_anonymised" in preds:
             # Memorisation check: positive = real names help. Raw and recalibrated.
             split["jev_names_vs_anonymised"] = {
@@ -153,7 +199,7 @@ def run():
             }
         split["metrics"]["always_home"] = classification_metrics(y, np.full(len(y), y.mean()))
 
-        plot_calibration({names[k]: (y, games[f"p_{k}"].to_numpy()) for k in preds},
+        plot_calibration({names[k]: (y, games[f"p_{k}"].to_numpy()) for k in FEATURED if k in preds},
                          RESULTS_DIR / f"calibration_{label}.png",
                          f"Calibration, {label} season {season} ({len(games)} games)")
 
@@ -175,7 +221,8 @@ def run():
             for k in preds:
                 odds_block["models"][k] = classification_metrics(yo, odds[f"p_{k}"])
                 bm = betting_metrics(yo, odds[f"p_{k}"], odds.home_odds, odds.away_odds)
-                curves[names[k]] = bm["quarter_kelly_path"]
+                if k in FEATURED:
+                    curves[names[k]] = bm["quarter_kelly_path"]
                 odds_block["betting"][k] = {kk: v for kk, v in bm.items() if not isinstance(v, list)}
             split["odds"] = odds_block
             plot_bankroll(curves, RESULTS_DIR / "bankroll_test.png")
@@ -220,6 +267,13 @@ def write_table(out):
         lines.append("|---|---|---|")
         for k, b in split["paired_vs_logreg"].items():
             lines.append(f"| {out['models'][k]} | {b['mean_diff']:+.4f} | [{b['ci_low']:+.4f}, {b['ci_high']:+.4f}] |")
+    for label, split in out["splits"].items():
+        if "paired_vs_scalars" in split:
+            lines.append(f"\n**{label.capitalize()}: log loss improvement over the 7-number logistic regression, paired bootstrap 95% CI** (positive = better)\n")
+            lines.append("| Model | Mean | 95% CI |")
+            lines.append("|---|---|---|")
+            for k, b in split["paired_vs_scalars"].items():
+                lines.append(f"| {out['models'][k]} | {b['mean_diff']:+.4f} | [{b['ci_low']:+.4f}, {b['ci_high']:+.4f}] |")
     for label, split in out["splits"].items():
         if "jev_names_vs_anonymised" in split:
             lines.append(f"\n**{label.capitalize()}: Jev with real names vs anonymised, log loss gain from names, paired bootstrap 95% CI**\n")

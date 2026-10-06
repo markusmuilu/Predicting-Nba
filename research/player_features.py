@@ -44,9 +44,10 @@ PLAYER_FEATURES = (
 CONTEXT_FEATURES = ["rest_days", "back_to_back", "games_into_season"]
 
 
-def load_games():
+def load_games(seasons=None):
     """One row per game from the team game logs: date, home, away, result."""
-    t = pd.concat([nba_game_log(s, "T").assign(season=s) for s in SEASONS], ignore_index=True)
+    seasons = seasons or SEASONS
+    t = pd.concat([nba_game_log(s, "T").assign(season=s) for s in seasons], ignore_index=True)
     t["is_home"] = t["MATCHUP"].str.contains("vs.")
     home = t[t.is_home][["GAME_ID", "GAME_DATE", "season", "TEAM_ABBREVIATION", "WL", "PTS"]]
     away = t[~t.is_home][["GAME_ID", "TEAM_ABBREVIATION", "PTS"]]
@@ -58,9 +59,10 @@ def load_games():
         .sort_values(["date", "game_id"]).reset_index(drop=True)
 
 
-def player_rows():
+def player_rows(seasons=None):
     """Every player-game with pre-game features attached."""
-    p = pd.concat([nba_game_log(s, "P").assign(season=s) for s in SEASONS], ignore_index=True)
+    seasons = seasons or SEASONS
+    p = pd.concat([nba_game_log(s, "P").assign(season=s) for s in seasons], ignore_index=True)
     p["date"] = pd.to_datetime(p["GAME_DATE"])
     p = p.sort_values(["PLAYER_ID", "date", "GAME_ID"]).reset_index(drop=True)
     p[BOX] = p[BOX].fillna(0)

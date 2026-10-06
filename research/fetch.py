@@ -21,7 +21,7 @@ import requests
 from nba_api.stats.endpoints import leaguegamelog
 from nba_api.stats.static import teams as nba_teams
 
-from research.config import RAW_DIR, SEASONS
+from research.config import EXTRA_SEASONS, RAW_DIR, SEASONS
 
 PBP_URL = "https://api.pbpstats.com"
 PBP_HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/121.0 Safari/537.36"}
@@ -121,7 +121,9 @@ def nba_game_log(season, mode):
 
 
 if __name__ == "__main__":
-    for s in SEASONS:
+    import sys
+    seasons = EXTRA_SEASONS if "--extra" in sys.argv else SEASONS
+    for s in seasons:
         pbpstats_games(s)
         pbpstats_team_logs(s)
         nba_game_log(s, "T")
