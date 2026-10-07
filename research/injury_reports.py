@@ -143,6 +143,19 @@ def latest(events, y, current):
     return value
 
 
+def split_status(status, reason):
+    """
+    Four reports from 16-17 Dec 2019 use a layout in which the status and the reason run together in one cell
+    ('Available Injury/Illness - Right Ankle; Sprain'). The first word is the status; the rest belongs to the reason.
+    """
+    if isinstance(status, str):
+        first = status.split(" ", 1)[0]
+        if status not in STATUSES and first in STATUSES:
+            rest = status[len(first):].strip()
+            return first, " ".join(x for x in (rest, reason if isinstance(reason, str) else "") if x) or None
+    return status, reason
+
+
 def parse_page(page, state, problems, pno, starts_prev):
     """Rows of one page. `state` carries the game and team across pages; so do the column positions."""
     words = visual_words(page)
@@ -207,7 +220,8 @@ def parse_page(page, state, problems, pno, starts_prev):
         if not player:
             problems.append(f"page {pno}: status without a player at y={y:.0f}")
             continue
-        rows.append({**base, "player": player, "status": text(cell, status_col), "reason": text(cell, "Reason") or None,
+        status, reason = split_status(text(cell, status_col), text(cell, "Reason") or None)
+        rows.append({**base, "player": player, "status": status, "reason": reason,
                      "category": text(cell, "Category") if "Category" in starts else None,
                      "previous_status": text(cell, "Previous Status") if "Previous Status" in starts else None})
     return rows, starts

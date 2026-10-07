@@ -58,7 +58,9 @@ class OddsFetcher:
                             rows.append(game_data)
                             break  
 
-        return pd.DataFrame(rows)
+        # Always return the four columns, even when no game is priced (preseason, an off day): an empty frame without
+        # columns made the caller's odds["home_team"] raise KeyError and drop the whole day's predictions.
+        return pd.DataFrame(rows, columns=["home_team", "away_team", "home_odds", "away_odds"])
 
 if __name__ == "__main__":
     odds_df = OddsFetcher.fetch_odds()

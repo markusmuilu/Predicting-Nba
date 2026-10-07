@@ -1,0 +1,82 @@
+{
+ "2018-19": {
+  "games": 789,
+  "no_snapshot_at_T60": 0,
+  "different_report_60_vs_30": 0.11660329531051965,
+  "different_report_30_vs_15": 0.0,
+  "different_report_60_vs_15": 0.11660329531051965,
+  "any_status_changed_60_vs_30": 0.08238276299112801,
+  "any_status_changed_30_vs_15": 0.0,
+  "any_status_changed_60_vs_15": 0.08238276299112801
+ },
+ "2019-20": {
+  "games": 980,
+  "no_snapshot_at_T60": 0,
+  "different_report_60_vs_30": 0.1326530612244898,
+  "different_report_30_vs_15": 0.0,
+  "different_report_60_vs_15": 0.1326530612244898,
+  "any_status_changed_60_vs_30": 0.10510204081632653,
+  "any_status_changed_30_vs_15": 0.0,
+  "any_status_changed_60_vs_15": 0.10510204081632653
+ },
+ "2020-21": {
+  "games": 1205,
+  "no_snapshot_at_T60": 0,
+  "different_report_60_vs_30": 0.12116182572614108,
+  "different_report_30_vs_15": 0.0,
+  "different_report_60_vs_15": 0.12116182572614108,
+  "any_status_changed_60_vs_30": 0.08298755186721991,
+  "any_status_changed_30_vs_15": 0.0,
+  "any_status_changed_60_vs_15": 0.08298755186721991
+ },
+ "2021-22": {
+  "games": 1241,
+  "no_snapshot_at_T60": 0,
+  "different_report_60_vs_30": 0.6704270749395649,
+  "different_report_30_vs_15": 0.0,
+  "different_report_60_vs_15": 0.6704270749395649,
+  "any_status_changed_60_vs_30": 0.42949234488315874,
+  "any_status_changed_30_vs_15": 0.0,
+  "any_status_changed_60_vs_15": 0.42949234488315874
+ },
+ "2022-23": {
+  "games": 1231,
+  "no_snapshot_at_T60": 0,
+  "different_report_60_vs_30": 0.6978066612510154,
+  "different_report_30_vs_15": 0.002437043054427295,
+  "different_report_60_vs_15": 0.7002437043054427,
+  "any_status_changed_60_vs_30": 0.4809098294069862,
+  "any_status_changed_30_vs_15": 0.0008123476848090983,
+  "any_status_changed_60_vs_15": 0.48172217709179527
+ },
+ "2023-24": {
+  "games": 1232,
+  "no_snapshot_at_T60": 0,
+  "different_report_60_vs_30": 0.6842532467532467,
+  "different_report_30_vs_15": 0.0,
+  "different_report_60_vs_15": 0.6842532467532467,
+  "any_status_changed_60_vs_30": 0.4715909090909091,
+  "any_status_changed_30_vs_15": 0.0,
+  "any_status_changed_60_vs_15": 0.4715909090909091
+ },
+ "2024-25": {
+  "games": 1236,
+  "no_snapshot_at_T60": 0,
+  "different_report_60_vs_30": 0.6739482200647249,
+  "different_report_30_vs_15": 0.0024271844660194173,
+  "different_report_60_vs_15": 0.6763754045307443,
+  "any_status_changed_60_vs_30": 0.5032362459546925,
+  "any_status_changed_30_vs_15": 0.0016181229773462784,
+  "any_status_changed_60_vs_15": 0.5048543689320388
+ },
+ "2025-26": {
+  "games": 1182,
+  "no_snapshot_at_T60": 0,
+  "different_report_60_vs_30": 0.8688663282571912,
+  "different_report_30_vs_15": 0.6345177664974619,
+  "different_report_60_vs_15": 0.8798646362098139,
+  "any_status_changed_60_vs_30": 0.38155668358714045,
+  "any_status_changed_30_vs_15": 0.030456852791878174,
+  "any_status_changed_60_vs_15": 0.40016920473773265
+ }
+}
