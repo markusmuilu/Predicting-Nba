@@ -20,6 +20,7 @@ import requests
 from predict_nba.utils.exception import CustomException
 from predict_nba.utils.logger import logger
 from predict_nba.utils.s3_client import S3Client
+from predict_nba.utils.season import current_season
 
 CACHE_TTL_SECONDS = 6 * 3600  # 6 hours
 
@@ -152,13 +153,14 @@ class DataCollector:
             CustomException(f"collect_training_data failed: {e}", sys)
             return None
 
-    def get_current_season(self, team_abbrev, season="2025-26", upload=True):
+    def get_current_season(self, team_abbrev, season=None, upload=True):
         """
         Fetch logs for a single team for the current season.
         Uploads results to:
             predict/<TEAM>.csv
         """
         try:
+            season = season or current_season()      # was hardcoded to "2025-26", which would serve last season's data in 2026-27
             team = next(
                 (t for t in self.teams if t["name"].lower() == team_abbrev.lower()),
                 None,
