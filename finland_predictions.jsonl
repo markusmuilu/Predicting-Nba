@@ -73,3 +73,12 @@
 {"when": "2026-10-31 18:20", "league": "M2D", "home": "JaKaRi", "away": "ToPoLa", "p_home": 0.426, "margin": -2.9, "pool": "m2d", "predicted_at": "2026-10-16T08:12:20+00:00"}
 {"when": "2026-10-31 19:00", "league": "M2D", "home": "Ravens", "away": "BC Unelma", "p_home": 0.508, "margin": 0.3, "pool": "m2d", "predicted_at": "2026-10-16T08:12:20+00:00"}
 {"when": "2026-11-01 19:00", "league": "M2D", "home": "PuHu 2", "away": "Kartanon Herrat", "p_home": 0.317, "margin": -7.5, "pool": "m2d", "predicted_at": "2026-10-16T08:12:20+00:00"}
+{"when": "2026-10-23 18:30", "league": "KL", "home": "Kauhajoki", "away": "Lahti Basketball", "p_home": 0.613, "margin": 4.5, "pool": "national", "predicted_at": "2026-10-17T07:50:42+00:00"}
+{"when": "2026-11-06 18:30", "league": "KL", "home": "Helsinki Seagulls", "away": "Kouvot", "p_home": 0.63, "margin": 5.2, "pool": "national", "predicted_at": "2026-10-17T07:50:42+00:00"}
+{"when": "2026-11-06 18:30", "league": "I-A", "home": "Kobrat", "away": "Lappeenrannan NMKY", "p_home": 0.781, "margin": 12.1, "pool": "national", "predicted_at": "2026-10-17T07:50:42+00:00"}
+{"when": "2026-11-06 18:30", "league": "I-A", "home": "Torpan Pojat", "away": "Äänekosken Huima", "p_home": 0.619, "margin": 4.7, "pool": "national", "predicted_at": "2026-10-17T07:50:42+00:00"}
+{"when": "2026-11-06 18:30", "league": "I-A", "home": "ACO Basket", "away": "Pantterit", "p_home": 0.643, "margin": 5.7, "pool": "national", "predicted_at": "2026-10-17T07:50:42+00:00"}
+{"when": "2026-11-06 18:30", "league": "I-A", "home": "HBA-Märsky", "away": "Karkkila", "p_home": 0.609, "margin": 4.3, "pool": "national", "predicted_at": "2026-10-17T07:50:42+00:00"}
+{"when": "2026-11-06 18:30", "league": "I-B", "home": "BC Nokia", "away": "PeU-Basket", "p_home": 0.49, "margin": -0.4, "pool": "national", "predicted_at": "2026-10-17T07:50:42+00:00"}
+{"when": "2026-11-06 18:30", "league": "I-B", "home": "Turun NMKY", "away": "Kataja Basket Academy", "p_home": 0.719, "margin": 9.0, "pool": "national", "predicted_at": "2026-10-17T07:50:42+00:00"}
+{"when": "2026-11-06 18:30", "league": "I-B", "home": "Ura Basket", "away": "Raiders Basket", "p_home": 0.791, "margin": 12.6, "pool": "national", "predicted_at": "2026-10-17T07:50:42+00:00"}
