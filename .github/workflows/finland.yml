@@ -1,0 +1,64 @@
+# Finnish leagues for the portfolio: rebuild the ratings from the federation's results service twice a day, log each
+# upcoming game's prediction the first time it is seen, and publish finland.json to the `data` branch.
+# The code lives in markusmuilu/nba-dashboard (branch static-site, finland/).
+name: Finnish leagues
+
+on:
+  schedule:
+    - cron: "0 6 * * *"    # about 09:00 Finnish time
+    - cron: "0 15 * * *"   # about 18:00 Finnish time
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency: finland
+
+jobs:
+  ratings:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: data
+          path: data
+      - uses: actions/checkout@v4
+        with:
+          repository: markusmuilu/nba-dashboard
+          ref: static-site
+          path: dashboard
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install numpy pandas requests
+      - name: Rebuild the ratings
+        working-directory: dashboard
+        run: python -m finland.pipeline
+      - name: Log new predictions and publish
+        run: |
+          python - <<'EOF'
+          import json, datetime, pathlib
+          site = json.loads(pathlib.Path("dashboard/site/finland.json").read_text(encoding="utf-8"))
+          log = pathlib.Path("data/finland_predictions.jsonl")
+          seen = set()
+          if log.exists():
+              for line in log.read_text(encoding="utf-8").splitlines():
+                  if line.strip():
+                      r = json.loads(line)
+                      seen.add((r["when"], r["home"], r["away"]))
+          now = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+          new = [{**u, "pool": pool, "predicted_at": now} for pool, p in site["pools"].items()
+                 for u in p["upcoming"] if (u["when"], u["home"], u["away"]) not in seen]
+          with log.open("a", encoding="utf-8") as f:
+              for r in new:
+                  f.write(json.dumps(r, ensure_ascii=False) + "\n")
+          print(f"{len(new)} new predictions logged")
+          EOF
+          cp dashboard/site/finland.json data/finland.json
+          cd data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || git commit -m "Finland $(date -u +'%Y-%m-%d %H:%M') UTC"
+          git push
