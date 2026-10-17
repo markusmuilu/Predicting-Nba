@@ -1,12 +1,11 @@
-# Finnish leagues for the portfolio: rebuild the ratings from the federation's results service twice a day, log each
+# Finnish leagues for the portfolio: rebuild the ratings from the federation's results service once a day, log each
 # upcoming game's prediction the first time it is seen, and publish finland.json to the `data` branch.
 # The code lives in markusmuilu/nba-dashboard (branch static-site, finland/).
 name: Finnish leagues
 
 on:
   schedule:
-    - cron: "0 6 * * *"    # about 09:00 Finnish time
-    - cron: "0 15 * * *"   # about 18:00 Finnish time
+    - cron: "0 4 * * *"    # 07:00 Finnish summer time (06:00 in winter): the night's results are in
   workflow_dispatch:
 
 permissions:
