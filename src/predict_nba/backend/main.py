@@ -15,6 +15,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from predict_nba.backend.limiter import limiter
 from predict_nba.backend.routes.predict import router as predict_router
 from predict_nba.backend.routes.update import router as update_router
+from predict_nba.backend.routes.portfolio import router as portfolio_router
 from predict_nba.pipeline.model_predictor import ModelPredictor
 from predict_nba.utils.wait_for_model import wait_for_required_files
 
@@ -54,3 +55,4 @@ app.add_middleware(
 
 app.include_router(predict_router)
 app.include_router(update_router)
+app.include_router(portfolio_router)
