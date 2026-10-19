@@ -1,11 +1,18 @@
-# Finnish leagues for the portfolio: rebuild the ratings from the federation's results service once a day, log each
-# upcoming game's prediction the first time it is seen, and publish finland.json to the `data` branch.
+# Finnish leagues for the portfolio: rebuild the ratings from the federation's results service once a day and publish
+# finland.json to the `data` branch. Every upcoming game is logged twice in finland_predictions.jsonl, never rewritten:
+#   early     the first time the game appears in the schedule (up to three weeks ahead)
+#   gameday   on the day of the game, from the morning rebuild, if the game has not started
 # The code lives in markusmuilu/nba-dashboard (branch static-site, finland/).
+#
+# GitHub starts scheduled runs late or skips them under load (4.5 hours late on 18 Oct 2026, none on 17 Oct), so the
+# schedule offers several tries; the first one after 10:30 Finnish time does the work and the rest stop at the gate.
+# The cron times are UTC and cover both summer and winter time.
 name: Finnish leagues
 
 on:
   schedule:
-    - cron: "0 8 * * *"    # 11:00 Finnish summer time (10:00 in winter): after the 10:00 roster announcements
+    - cron: "5,35 7-9 * * *"
+    - cron: "5 10 * * *"
   workflow_dispatch:
 
 permissions:
@@ -22,22 +29,45 @@ jobs:
         with:
           ref: data
           path: data
-      - uses: actions/checkout@v4
+      - name: Gate, once a day after 10:30 Finnish time
+        id: gate
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          python - <<'EOF'
+          import datetime, os, pathlib
+          from zoneinfo import ZoneInfo
+          now = datetime.datetime.now(ZoneInfo("Europe/Helsinki"))
+          marker = pathlib.Path("data/finland_last_run.txt")
+          done_today = marker.exists() and marker.read_text().strip() == now.date().isoformat()
+          go = os.environ["EVENT"] == "workflow_dispatch" or (now.hour * 60 + now.minute >= 10 * 60 + 30 and not done_today)
+          print(f"Finnish time {now:%Y-%m-%d %H:%M}, already ran today: {done_today}, go: {go}")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"go={'true' if go else 'false'}\n")
+          EOF
+      - if: steps.gate.outputs.go == 'true'
+        uses: actions/checkout@v4
         with:
           repository: markusmuilu/nba-dashboard
           ref: static-site
           path: dashboard
-      - uses: actions/setup-python@v5
+      - if: steps.gate.outputs.go == 'true'
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install numpy pandas requests
+      - if: steps.gate.outputs.go == 'true'
+        run: pip install numpy pandas requests
       - name: Rebuild the ratings
+        if: steps.gate.outputs.go == 'true'
         working-directory: dashboard
         run: python -m finland.pipeline
-      - name: Log new predictions and publish
+      - name: Log predictions and publish
+        if: steps.gate.outputs.go == 'true'
         run: |
           python - <<'EOF'
-          import json, datetime, pathlib
+          import datetime, json, pathlib
+          from zoneinfo import ZoneInfo
+          fi = ZoneInfo("Europe/Helsinki")
           site = json.loads(pathlib.Path("dashboard/site/finland.json").read_text(encoding="utf-8"))
           log = pathlib.Path("data/finland_predictions.jsonl")
           seen = set()
@@ -45,14 +75,26 @@ jobs:
               for line in log.read_text(encoding="utf-8").splitlines():
                   if line.strip():
                       r = json.loads(line)
-                      seen.add((r["when"], r["home"], r["away"]))
-          now = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
-          new = [{**u, "pool": pool, "predicted_at": now} for pool, p in site["pools"].items()
-                 for u in p["upcoming"] if (u["when"], u["home"], u["away"]) not in seen]
+                      seen.add((r["when"], r["home"], r["away"], r.get("kind", "early")))
+          now = datetime.datetime.now(datetime.timezone.utc)
+          today = now.astimezone(fi).date().isoformat()
+          stamp = now.isoformat(timespec="seconds")
+          new = []
+          for pool, p in site["pools"].items():
+              for u in p["upcoming"]:
+                  tip = datetime.datetime.strptime(u["when"], "%Y-%m-%d %H:%M").replace(tzinfo=fi)
+                  if tip <= now:
+                      continue
+                  key = (u["when"], u["home"], u["away"])
+                  if key + ("early",) not in seen:
+                      new.append({**u, "pool": pool, "kind": "early", "predicted_at": stamp})
+                  if u["when"][:10] == today and key + ("gameday",) not in seen:
+                      new.append({**u, "pool": pool, "kind": "gameday", "predicted_at": stamp})
           with log.open("a", encoding="utf-8") as f:
               for r in new:
                   f.write(json.dumps(r, ensure_ascii=False) + "\n")
-          print(f"{len(new)} new predictions logged")
+          print(f"{sum(r['kind'] == 'early' for r in new)} early and {sum(r['kind'] == 'gameday' for r in new)} game-day predictions logged")
+          pathlib.Path("data/finland_last_run.txt").write_text(today + "\n")
           EOF
           cp dashboard/site/finland.json data/finland.json
           cd data

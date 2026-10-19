@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - .github/workflows/finland.yml    # the Finnish job runs on GitHub, not on Fly
 jobs:
   deploy:
     name: Deploy app
