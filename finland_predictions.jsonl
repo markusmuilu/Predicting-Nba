@@ -95,3 +95,8 @@
 {"when": "2026-11-08 16:20", "league": "M2D", "home": "BC Unelma", "away": "Kotkajengi", "p_home": 0.642, "margin": 5.7, "pool": "m2d", "kind": "early", "predicted_at": "2026-10-19T09:29:43+00:00"}
 {"when": "2026-11-08 18:30", "league": "M2D", "home": "MuKi II", "away": "JaKaRi", "p_home": 0.596, "margin": 3.8, "pool": "m2d", "kind": "early", "predicted_at": "2026-10-19T09:29:43+00:00"}
 {"when": "2026-11-08 20:00", "league": "M2D", "home": "Yökoris Knights", "away": "Kartanon Herrat", "p_home": 0.26, "margin": -10.1, "pool": "m2d", "kind": "early", "predicted_at": "2026-10-19T09:29:43+00:00"}
+{"when": "2026-10-21 18:30", "league": "KL", "home": "Bisons Loimaa", "away": "Korihait", "p_home": 0.429, "margin": -3.0, "pool": "national", "kind": "gameday", "predicted_at": "2026-10-21T12:57:38+00:00"}
+{"when": "2026-10-21 18:30", "league": "KL", "home": "Lahti Basketball", "away": "Kauhajoki", "p_home": 0.512, "margin": 0.5, "pool": "national", "kind": "gameday", "predicted_at": "2026-10-21T12:57:38+00:00"}
+{"when": "2026-10-21 18:30", "league": "KL", "home": "Kouvot", "away": "KTP-Basket", "p_home": 0.329, "margin": -7.3, "pool": "national", "kind": "gameday", "predicted_at": "2026-10-21T12:57:38+00:00"}
+{"when": "2026-10-21 18:30", "league": "KL", "home": "Tampereen Pyrintö", "away": "Kataja Basket", "p_home": 0.531, "margin": 1.3, "pool": "national", "kind": "gameday", "predicted_at": "2026-10-21T12:57:38+00:00"}
+{"when": "2026-10-21 18:30", "league": "KL", "home": "Kipinä Basket", "away": "Tapiolan Honka", "p_home": 0.489, "margin": -0.5, "pool": "national", "kind": "gameday", "predicted_at": "2026-10-21T12:57:38+00:00"}
