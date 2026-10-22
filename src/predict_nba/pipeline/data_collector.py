@@ -23,6 +23,7 @@ from predict_nba.utils.s3_client import S3Client
 from predict_nba.utils.season import current_season
 
 CACHE_TTL_SECONDS = 6 * 3600  # 6 hours
+MIN_CURRENT_GAMES = 10   # the cleaner's rolling window
 
 class ConfigCollection:
     """Loads team metadata from S3 (teams.json)."""
@@ -221,13 +222,37 @@ class DataCollector:
                     continue
 
             logs = resp.json().get("multi_row_table_data", [])
-            if not logs:
+            df = pd.DataFrame(logs)
+            if len(df):
+                df["season"] = season
+
+            # Early in a season the 10-game averages would rest on one or two games (or none: NaN features), so
+            # until a team has 10 games the window reaches back into last season. Season wins and losses are still
+            # counted per season by the cleaner.
+            if len(df) < MIN_CURRENT_GAMES:
+                start = int(season[:4]) - 1
+                previous = f"{start}-{str(start + 1)[2:]}"
+                try:
+                    prev = requests.get(
+                        f"{self.BASE_URL}/get-game-logs/nba",
+                        headers=headers,
+                        params={"Season": previous, "SeasonType": "Regular Season", "EntityType": "Team", "EntityId": team_id},
+                        timeout=20,
+                    )
+                    prev.raise_for_status()
+                    prev_df = pd.DataFrame(prev.json().get("multi_row_table_data", []))
+                    if len(prev_df):
+                        prev_df["season"] = previous
+                        df = pd.concat([prev_df.sort_values("Date").tail(MIN_CURRENT_GAMES), df], ignore_index=True)
+                except Exception as e:
+                    logger.warning(f"{previous} logs for {team_name} unavailable: {e}")
+
+            if not len(df):
                 CustomException(f"No logs found for {team_name} in {season}", sys)
                 return None
 
-            df = pd.DataFrame(logs).sort_values("Date")
+            df = df.sort_values("Date")
             df["team"] = team_name
-            df["season"] = season
 
             if upload:
                 buffer = io.StringIO()
