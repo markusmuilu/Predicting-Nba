@@ -8,7 +8,8 @@ Every 15 minutes:
    predicts with the player model (players listed Out removed from the previous-game roster), asks the deployed
    regression for the same game in-process, and takes one odds call. With a 15-minute cadence each game is predicted
    once, 60 to 75 minutes before tip-off; a game whose window was missed is still predicted if it has not started.
-3. Writes portfolio/nba-season.json, served at /portfolio/nba-season.json.
+3. Writes portfolio/nba-season.json, served at /portfolio/nba-season.json: every prediction with its result and score,
+   and the schedule of games not predicted yet (today and the next two days), so the page can show what is coming.
 
 A failure in one step is logged and the loop carries on; nothing here touches the regression's own daily job.
 """
@@ -115,7 +116,13 @@ class PlayerRunner:
                and now < tip(g) <= now + timedelta(minutes=LEAD_MIN)]
         if due:
             self.predict(due, today, season, now, history if history is not None else self.store.history(), pred_key)
-        self.export(season)
+        done = predicted | {g["id"] for g in due}
+        schedule = []
+        for day in (today, today + timedelta(days=1), today + timedelta(days=2)):
+            games = todays if day == today else espn.scoreboard(day)
+            schedule += [{"d": str(day), "t": g["tip"], "h": g["home"], "a": g["away"]} for g in games
+                         if g["state"] == "pre" and g["id"] not in done and g["season_type"] in (espn.REGULAR, espn.PLAYOFFS)]
+        self.export(season, schedule)
 
     def predict(self, due, today, season, now, history, pred_key):
         injuries = espn.injuries()
@@ -151,16 +158,18 @@ class PlayerRunner:
         self.store.append_jsonl(f"player_live/injuries_{season}.jsonl",
                                 [{"time": now.isoformat(timespec="seconds"), "espn": injuries}])
 
-    def export(self, season):
-        """Last season (fixed) plus this season's predictions and results, for the portfolio."""
+    def export(self, season, schedule=()):
+        """Last season (fixed) plus this season's predictions, results and schedule, for the portfolio."""
         data = self.store.get_json(BACKTEST, {"backtest": {"season": "2025-26", "games": []}, "live": {}})
         results = self.store.get_json(f"player_live/results_{season}.json", {})
         games = []
         for p in self.store.jsonl(f"player_live/predictions_{season}.jsonl"):
             r = results.get(p["id"])
             games.append({"d": p["date"], "t": p["tip"], "h": p["home"], "a": p["away"], "hw": r["hw"] if r else None,
-                          "pm": p["pm"], "ps": p["ps"], "oh": p["oh"], "oa": p["oa"]})
-        data["live"] = {"season": season, "opens": "2026-10-20", "games": games}
+                          "hs": r["home_pts"] if r else None, "as": r["away_pts"] if r else None,
+                          "pm": p["pm"], "ps": p["ps"], "oh": p["oh"], "oa": p["oa"],
+                          "pa": p["predicted_at"], "xo": [p.get("out_home", []), p.get("out_away", [])]})
+        data["live"] = {"season": season, "opens": "2026-10-20", "games": games, "schedule": list(schedule)}
         data["generated_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
         self.store.put_json(PORTFOLIO + "nba-season.json", data)
 
