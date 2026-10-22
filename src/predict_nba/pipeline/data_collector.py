@@ -221,7 +221,8 @@ class DataCollector:
                     time.sleep(attempt * 20 + 20)
                     continue
 
-            logs = resp.json().get("multi_row_table_data", [])
+            # pbpstats answers a season it has not processed yet with one empty record ({}), as for 2026-27 in October.
+            logs = [r for r in resp.json().get("multi_row_table_data", []) if r.get("Date")]
             df = pd.DataFrame(logs)
             if len(df):
                 df["season"] = season
