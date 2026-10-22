@@ -4,10 +4,14 @@ The player model's loop, run as its own process next to the API and the daily re
 Every 15 minutes:
 1. Records results of yesterday's and today's finished games, and appends each finished regular-season game's ESPN
    box score to the player history, so tomorrow's features include it.
-2. For games tipping off within the next LEAD_MIN minutes that have no prediction yet: takes ESPN's injury list now,
-   predicts with the player model (players listed Out removed from the previous-game roster), asks the deployed
-   regression for the same game in-process, and takes one odds call. With a 15-minute cadence each game is predicted
-   once, 60 to 75 minutes before tip-off; a game whose window was missed is still predicted if it has not started.
+2. Predicts each game twice, both stored and never changed:
+   early   as soon as both teams have finished their previous game and its box score is in the history, for games
+           up to two days ahead;
+   final   for games tipping off within the next LEAD_MIN minutes, with ESPN's injury list taken then. With a
+           15-minute cadence that is 60 to 75 minutes before tip-off; a game whose window was missed is still
+           predicted if it has not started. The pre-game record is scored on the final prediction.
+   Each round: the player model (players listed Out removed from the previous-game roster), the deployed regression
+   for the same game in-process, and one odds call for the prices at that moment.
 3. Writes portfolio/nba-season.json, served at /portfolio/nba-season.json: every prediction with its result and score,
    and the schedule of games not predicted yet (today and the next two days), so the page can show what is coming.
 
@@ -87,21 +91,22 @@ class PlayerRunner:
         pred_key, res_key = f"player_live/predictions_{season}.jsonl", f"player_live/results_{season}.json"
         results = self.store.get_json(res_key, {})
         box_done = set(self.store.get_json(BOX_DONE, []))
-        predicted = {p["id"] for p in self.store.jsonl(pred_key)}
+        logged = self.store.jsonl(pred_key)
+        done_final = {p["id"] for p in logged if p.get("round", "final") == "final"}
+        done_early = {p["id"] for p in logged if p.get("round") == "early"}
 
-        todays, new_box = [], []
-        for day in (today - timedelta(days=1), today):
-            for g in espn.scoreboard(day):
-                if g["season_type"] not in (espn.REGULAR, espn.PLAYOFFS):
-                    continue
+        days = [today + timedelta(days=k) for k in (-1, 0, 1, 2)]
+        board, new_box = {}, []
+        for day in days:
+            board[day] = [g for g in espn.scoreboard(day) if g["season_type"] in (espn.REGULAR, espn.PLAYOFFS)]
+            for g in board[day]:
+                g["day"] = day
                 if g["state"] == "post":
                     results[g["id"]] = {"home_pts": g["home_pts"], "away_pts": g["away_pts"],
                                         "hw": int(g["home_pts"] > g["away_pts"])}
                     if g["season_type"] == espn.REGULAR and g["id"] not in box_done:
                         new_box += espn.box_rows(g["id"], str(day), season)
                         box_done.add(g["id"])
-                if day == today:
-                    todays.append(g)
         self.store.put_json(res_key, results)
 
         history = None
@@ -112,19 +117,33 @@ class PlayerRunner:
             logger.info(f"player model: {len(new_box)} player rows added from finished games")
 
         tip = lambda g: datetime.fromisoformat(g["tip"].replace("Z", "+00:00"))
-        due = [g for g in todays if g["state"] == "pre" and g["id"] not in predicted
-               and now < tip(g) <= now + timedelta(minutes=LEAD_MIN)]
-        if due:
-            self.predict(due, today, season, now, history if history is not None else self.store.history(), pred_key)
-        done = predicted | {g["id"] for g in due}
-        schedule = []
-        for day in (today, today + timedelta(days=1), today + timedelta(days=2)):
-            games = todays if day == today else espn.scoreboard(day)
-            schedule += [{"d": str(day), "t": g["tip"], "h": g["home"], "a": g["away"]} for g in games
-                         if g["state"] == "pre" and g["id"] not in done and g["season_type"] in (espn.REGULAR, espn.PLAYOFFS)]
+        window = [g for day in days for g in board[day]]
+
+        def ready(g):
+            """Both teams have played every game before this one, and those games are in the history."""
+            for team in (g["home"], g["away"]):
+                for o in window:
+                    if team in (o["home"], o["away"]) and tip(o) < tip(g):
+                        if o["state"] != "post" or (o["season_type"] == espn.REGULAR and o["id"] not in box_done):
+                            return False
+            return True
+
+        upcoming = [g for g in window if g["state"] == "pre" and now < tip(g)]
+        final_due = [g for g in upcoming if g["id"] not in done_final and tip(g) <= now + timedelta(minutes=LEAD_MIN)]
+        early_due = [g for g in upcoming if g["id"] not in done_final and g["id"] not in done_early
+                     and tip(g) > now + timedelta(minutes=LEAD_MIN) and ready(g)]
+        for rnd, due in (("final", final_due), ("early", early_due)):
+            if due:
+                if history is None:
+                    history = self.store.history()
+                self.predict(due, season, now, history, pred_key, rnd)
+        done_final |= {g["id"] for g in final_due}
+        done_any = done_final | done_early | {g["id"] for g in early_due}
+        schedule = [{"d": str(g["day"]), "t": g["tip"], "h": g["home"], "a": g["away"]}
+                    for g in upcoming if g["day"] >= today and g["id"] not in done_any]
         self.export(season, schedule)
 
-    def predict(self, due, today, season, now, history, pred_key):
+    def predict(self, due, season, now, history, pred_key, rnd):
         injuries = espn.injuries()
         out = {}
         for i in injuries:
@@ -138,8 +157,8 @@ class PlayerRunner:
         rows = standardise(player_rows(history[history.key.isin(keys)]), self.model.meta)
         X, W, C, infos = [], [], [], []
         for g in due:
-            xh, wh, ch, ih = team_inputs(rows, g["home"], today, season, self.model.meta, out.get(g["home"], set()))
-            xa, wa, ca, ia = team_inputs(rows, g["away"], today, season, self.model.meta, out.get(g["away"], set()))
+            xh, wh, ch, ih = team_inputs(rows, g["home"], g["day"], season, self.model.meta, out.get(g["home"], set()))
+            xa, wa, ca, ia = team_inputs(rows, g["away"], g["day"], season, self.model.meta, out.get(g["away"], set()))
             X.append([xh, xa]); W.append([wh, wa]); C.append([ch, ca]); infos.append((ih, ia))
         p = self.model.p_home(np.array(X), np.array(W), np.array(C))
         prices = odds()
@@ -147,28 +166,37 @@ class PlayerRunner:
         for g, ph, (ih, ia) in zip(due, p, infos):
             oh, oa = prices.get((norm_team(g["home_name"]), norm_team(g["away_name"])), (None, None))
             ps = shadow(g["home"], g["away"], self.regression())
-            records.append({"id": g["id"], "date": str(today), "tip": g["tip"], "home": g["home"], "away": g["away"],
+            records.append({"id": g["id"], "round": rnd, "date": str(g["day"]), "tip": g["tip"], "home": g["home"], "away": g["away"],
                             "pm": round(float(ph), 4), "ps": ps, "oh": oh, "oa": oa,
                             "predicted_at": now.isoformat(timespec="seconds"),
                             "minutes_before_tip": round((datetime.fromisoformat(g["tip"].replace("Z", "+00:00")) - now).total_seconds() / 60),
                             "out_home": ih["removed_out"], "out_away": ia["removed_out"],
                             "roster_from": [ih["roster_from"], ia["roster_from"]]})
-            logger.info(f"player model: {g['away']} at {g['home']} -> {ph:.3f}, regression {ps}, price {oh}/{oa}")
+            logger.info(f"player model ({rnd}): {g['away']} at {g['home']} -> {ph:.3f}, regression {ps}, price {oh}/{oa}")
         self.store.append_jsonl(pred_key, records)
         self.store.append_jsonl(f"player_live/injuries_{season}.jsonl",
-                                [{"time": now.isoformat(timespec="seconds"), "espn": injuries}])
+                                [{"time": now.isoformat(timespec="seconds"), "round": rnd, "espn": injuries}])
 
     def export(self, season, schedule=()):
         """Last season (fixed) plus this season's predictions, results and schedule, for the portfolio."""
         data = self.store.get_json(BACKTEST, {"backtest": {"season": "2025-26", "games": []}, "live": {}})
         results = self.store.get_json(f"player_live/results_{season}.json", {})
-        games = []
+        by_id = {}
         for p in self.store.jsonl(f"player_live/predictions_{season}.jsonl"):
-            r = results.get(p["id"])
+            by_id.setdefault(p["id"], {})[p.get("round", "final")] = p
+        games = []
+        for gid, rounds in by_id.items():
+            p = rounds.get("final") or rounds["early"]
+            e = rounds.get("early")
+            r = results.get(gid)
             games.append({"d": p["date"], "t": p["tip"], "h": p["home"], "a": p["away"], "hw": r["hw"] if r else None,
                           "hs": r["home_pts"] if r else None, "as": r["away_pts"] if r else None,
+                          "r": "final" if "final" in rounds else "early",
                           "pm": p["pm"], "ps": p["ps"], "oh": p["oh"], "oa": p["oa"],
-                          "pa": p["predicted_at"], "xo": [p.get("out_home", []), p.get("out_away", [])]})
+                          "pa": p["predicted_at"], "xo": [p.get("out_home", []), p.get("out_away", [])],
+                          "early": {"pm": e["pm"], "ps": e["ps"], "oh": e["oh"], "oa": e["oa"], "pa": e["predicted_at"]}
+                          if e and "final" in rounds else None})
+        games.sort(key=lambda g: g["t"])
         data["live"] = {"season": season, "opens": "2026-10-20", "games": games, "schedule": list(schedule)}
         data["generated_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
         self.store.put_json(PORTFOLIO + "nba-season.json", data)
