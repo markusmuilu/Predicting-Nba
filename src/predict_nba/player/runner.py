@@ -196,6 +196,16 @@ class PlayerRunner:
                           "pa": p["predicted_at"], "xo": [p.get("out_home", []), p.get("out_away", [])],
                           "early": {"pm": e["pm"], "ps": e["ps"], "oh": e["oh"], "oa": e["oa"], "pa": e["predicted_at"]}
                           if e and "final" in rounds else None})
+        # Games the loop failed to predict (out of memory on 21 Oct 2026), reconstructed afterwards from the history
+        # before that day: published as backtests, never counted in the pre-game record.
+        for p in self.store.get_json(f"player_live/reconstructed_{season}.json", []):
+            if p["id"] in by_id:
+                continue
+            r = results.get(p["id"])
+            games.append({"d": p["date"], "t": p["tip"], "h": p["home"], "a": p["away"], "hw": r["hw"] if r else None,
+                          "hs": r["home_pts"] if r else None, "as": r["away_pts"] if r else None, "r": "reconstructed",
+                          "pm": p["pm"], "ps": None, "oh": None, "oa": None, "pa": p["computed_at"], "xo": [[], []],
+                          "early": None})
         games.sort(key=lambda g: g["t"])
         data["live"] = {"season": season, "opens": "2026-10-20", "games": games, "schedule": list(schedule)}
         data["generated_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
