@@ -1,19 +1,15 @@
+# Retired: the Finnish leagues now run on Fly.io (src/predict_nba/finland/runner.py), because GitHub started the
+# scheduled runs hours late. Kept for a manual run only.
 # Finnish leagues for the portfolio: rebuild the ratings from the federation's results service once a day and publish
 # finland.json to the `data` branch. Every upcoming game is logged twice in finland_predictions.jsonl, never rewritten:
 #   early     the first time the game appears in the schedule (up to three weeks ahead)
 #   gameday   on the day of the game, from the morning rebuild, if the game has not started
 # The code lives in markusmuilu/nba-dashboard (branch static-site, finland/).
 #
-# GitHub starts scheduled runs late or skips them under load (4.5 hours late on 18 Oct 2026, none on 17 Oct), so the
-# schedule offers several tries; the first one after 10:30 Finnish time does the work and the rest stop at the gate.
-# The cron times are UTC and cover both summer and winter time.
 name: Finnish leagues
 
 on:
-  schedule:
-    - cron: "5,35 7-9 * * *"
-    - cron: "5 10 * * *"
-  workflow_dispatch:
+  workflow_dispatch:     # the schedule moved to Fly.io (predict_nba.finland.runner) on 22 Oct 2026
 
 permissions:
   contents: write

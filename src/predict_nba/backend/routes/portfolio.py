@@ -10,7 +10,7 @@ from predict_nba.utils.logger import logger
 from predict_nba.utils.s3_client import S3Client
 
 router = APIRouter()
-FILES = {"nba-season.json", "finland.json"}
+FILES = {"nba-season.json", "finland.json", "finland_predictions.jsonl"}
 
 
 @router.get("/portfolio/{name}")
@@ -20,7 +20,8 @@ def portfolio_file(name: str):
     body = S3Client().download(f"portfolio/{name}")
     if body is None:
         raise HTTPException(status_code=404, detail="Not written yet.")
-    return Response(content=body, media_type="application/json", headers={"Cache-Control": "public, max-age=300"})
+    kind = "application/x-ndjson" if name.endswith(".jsonl") else "application/json"
+    return Response(content=body, media_type=kind, headers={"Cache-Control": "public, max-age=300"})
 
 
 _TEAM_RE = re.compile(r"^[A-Z]{2,4}$")

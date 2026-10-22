@@ -24,5 +24,9 @@ keep python -m predict_nba.automation.automation_runner &
 echo "=== Starting player model loop ==="
 keep python -m predict_nba.player.runner &
 
+echo "=== Starting Finnish leagues loop ==="
+export FINLAND_CACHE=/tmp/finland
+keep python -m predict_nba.finland.runner &
+
 echo "=== All services started ==="
 wait
